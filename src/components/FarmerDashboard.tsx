@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   Upload,
   FileText,
@@ -7,30 +7,50 @@ import {
   AlertTriangle,
   CheckCircle2,
   Send,
+  Leaf,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useClaims } from "@/context/ClaimsContext";
-import cropLeafImg from "@/assets/crop-leaf-sample.jpg";
 
 type Phase = "idle" | "scanning" | "result" | "submitted";
 
-const MOCK_RESULT = {
-  disease: "Paddy Leaf Blast",
-  damagePct: 45,
-  aiConfidence: 92,
-  crop: "Paddy (Rice)",
-  farmerName: "Ramesh Kumar",
+interface AiResult {
+  disease: string;
+  damagePct: number;
+  aiConfidence: number;
+  crop: string;
+  healthy: boolean;
+}
+
+const detectFromFilename = (filename: string): AiResult => {
+  const lower = filename.toLowerCase();
+  if (lower.includes("crop1"))
+    return { disease: "Paddy Leaf Blast", damagePct: 45, aiConfidence: 92, crop: "Paddy", healthy: false };
+  if (lower.includes("crop2"))
+    return { disease: "Wheat Rust", damagePct: 38, aiConfidence: 94, crop: "Wheat", healthy: false };
+  if (lower.includes("crop3"))
+    return { disease: "Cotton Aphids", damagePct: 60, aiConfidence: 89, crop: "Cotton", healthy: false };
+  // crop4 or anything else
+  return { disease: "Healthy Crop", damagePct: 0, aiConfidence: 99, crop: "Mixed Crop", healthy: true };
 };
+
+const FARMER_NAME = "Ramesh Kumar";
 
 const FarmerDashboard = () => {
   const { claims, addClaim } = useClaims();
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [result, setResult] = useState<AiResult | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = useCallback(() => {
+  const startAnalysis = useCallback((file: File) => {
+    const url = URL.createObjectURL(file);
+    setImageUrl(url);
+    const detected = detectFromFilename(file.name);
     setPhase("scanning");
     setProgress(0);
 
@@ -43,26 +63,47 @@ const FarmerDashboard = () => {
       setProgress(Math.min((elapsed / duration) * 100, 100));
       if (elapsed >= duration) {
         clearInterval(timer);
+        setResult(detected);
         setPhase("result");
       }
     }, interval);
   }, []);
 
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) startAnalysis(file);
+    },
+    [startAnalysis]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files?.[0];
+      if (file) startAnalysis(file);
+    },
+    [startAnalysis]
+  );
+
   const handleSubmit = useCallback(() => {
+    if (!result) return;
     addClaim({
-      farmerName: MOCK_RESULT.farmerName,
-      crop: MOCK_RESULT.crop,
-      disease: MOCK_RESULT.disease,
-      damagePct: MOCK_RESULT.damagePct,
-      aiConfidence: MOCK_RESULT.aiConfidence,
+      farmerName: FARMER_NAME,
+      crop: result.crop,
+      disease: result.disease,
+      damagePct: result.damagePct,
+      aiConfidence: result.aiConfidence,
     });
     setPhase("submitted");
-    setTimeout(() => setPhase("idle"), 2000);
-  }, [addClaim]);
+    setTimeout(() => {
+      setPhase("idle");
+      setImageUrl(null);
+      setResult(null);
+    }, 2000);
+  }, [addClaim, result]);
 
-  const farmerClaims = claims.filter(
-    (c) => c.farmerName === MOCK_RESULT.farmerName
-  );
+  const farmerClaims = claims.filter((c) => c.farmerName === FARMER_NAME);
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
@@ -72,7 +113,7 @@ const FarmerDashboard = () => {
           <Wheat className="h-8 w-8 text-secondary" />
           <div>
             <h2 className="text-xl font-bold text-foreground">
-              Welcome, {MOCK_RESULT.farmerName}
+              Welcome, {FARMER_NAME}
             </h2>
             <p className="text-sm text-muted-foreground">
               Manage your crop insurance claims and monitor status through the
@@ -92,9 +133,20 @@ const FarmerDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Hidden file input */}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
             {phase === "idle" && (
               <button
-                onClick={handleUpload}
+                onClick={() => fileRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
                 className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/50 py-12 transition-colors hover:border-secondary hover:bg-secondary/5"
               >
                 <Upload className="mb-3 h-10 w-10 text-muted-foreground transition-colors group-hover:text-secondary" />
@@ -107,17 +159,14 @@ const FarmerDashboard = () => {
               </button>
             )}
 
-            {phase === "scanning" && (
+            {phase === "scanning" && imageUrl && (
               <div className="space-y-4">
                 <div className="relative overflow-hidden rounded-md">
                   <img
-                    src={cropLeafImg}
-                    alt="Crop leaf being analyzed"
-                    className="w-full rounded-md"
-                    width={640}
-                    height={512}
+                    src={imageUrl}
+                    alt="Crop being analyzed"
+                    className="w-full rounded-md object-cover"
                   />
-                  {/* Scanning overlay */}
                   <div className="absolute inset-0 bg-primary/10" />
                   <div className="animate-scan-line absolute left-0 h-0.5 w-full bg-secondary shadow-[0_0_8px_hsl(var(--secondary))]" />
                 </div>
@@ -134,53 +183,47 @@ const FarmerDashboard = () => {
               </div>
             )}
 
-            {(phase === "result" || phase === "submitted") && (
+            {(phase === "result" || phase === "submitted") && imageUrl && result && (
               <div className="space-y-4">
                 <div className="relative overflow-hidden rounded-md">
                   <img
-                    src={cropLeafImg}
-                    alt="Analyzed crop leaf"
-                    className="w-full rounded-md"
-                    width={640}
-                    height={512}
+                    src={imageUrl}
+                    alt="Analyzed crop"
+                    className="w-full rounded-md object-cover"
                   />
                   <div className="absolute right-2 top-2">
-                    <Badge className="bg-secondary text-secondary-foreground">
-                      <CheckCircle2 className="mr-1 h-3 w-3" /> Analysis
-                      Complete
+                    <Badge className={result.healthy ? "bg-secondary text-secondary-foreground" : "bg-secondary text-secondary-foreground"}>
+                      <CheckCircle2 className="mr-1 h-3 w-3" /> Analysis Complete
                     </Badge>
                   </div>
                 </div>
 
-                {/* Result card */}
                 <div className="rounded-lg border bg-card p-4 shadow-sm">
                   <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
-                    <AlertTriangle className="h-4 w-4 text-accent" />
+                    {result.healthy ? (
+                      <Leaf className="h-4 w-4 text-secondary" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-accent" />
+                    )}
                     AI Detection Results
                   </h3>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-md bg-muted p-3 text-center">
-                      <p className="text-[11px] font-medium text-muted-foreground">
-                        Disease
-                      </p>
-                      <p className="mt-1 text-sm font-bold text-destructive">
-                        {MOCK_RESULT.disease}
+                      <p className="text-[11px] font-medium text-muted-foreground">Disease</p>
+                      <p className={`mt-1 text-sm font-bold ${result.healthy ? "text-secondary" : "text-destructive"}`}>
+                        {result.disease}
                       </p>
                     </div>
                     <div className="rounded-md bg-muted p-3 text-center">
-                      <p className="text-[11px] font-medium text-muted-foreground">
-                        Damage
-                      </p>
-                      <p className="mt-1 text-sm font-bold text-accent">
-                        {MOCK_RESULT.damagePct}%
+                      <p className="text-[11px] font-medium text-muted-foreground">Damage</p>
+                      <p className={`mt-1 text-sm font-bold ${result.healthy ? "text-secondary" : "text-accent"}`}>
+                        {result.damagePct}%
                       </p>
                     </div>
                     <div className="rounded-md bg-muted p-3 text-center">
-                      <p className="text-[11px] font-medium text-muted-foreground">
-                        AI Confidence
-                      </p>
+                      <p className="text-[11px] font-medium text-muted-foreground">AI Confidence</p>
                       <p className="mt-1 text-sm font-bold text-secondary">
-                        {MOCK_RESULT.aiConfidence}%
+                        {result.aiConfidence}%
                       </p>
                     </div>
                   </div>
@@ -218,12 +261,8 @@ const FarmerDashboard = () => {
             {farmerClaims.length === 0 ? (
               <div className="flex flex-col items-center py-12 text-center">
                 <FileText className="mb-3 h-10 w-10 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  No claims submitted yet.
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Upload a crop image to start a new claim.
-                </p>
+                <p className="text-sm text-muted-foreground">No claims submitted yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Upload a crop image to start a new claim.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -233,9 +272,7 @@ const FarmerDashboard = () => {
                     className="flex items-center justify-between rounded-md border bg-muted/30 p-3"
                   >
                     <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        {claim.id}
-                      </p>
+                      <p className="text-sm font-semibold text-foreground">{claim.id}</p>
                       <p className="text-xs text-muted-foreground">
                         {claim.disease} · {claim.dateFiled}
                       </p>
@@ -256,8 +293,7 @@ const FarmerDashboard = () => {
                           : ""
                       }
                     >
-                      {claim.status.charAt(0).toUpperCase() +
-                        claim.status.slice(1)}
+                      {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
                     </Badge>
                   </div>
                 ))}

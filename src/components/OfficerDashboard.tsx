@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
+  Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,14 @@ const OfficerDashboard = () => {
                             <>
                               <Button
                                 size="sm"
+                                variant="outline"
+                                onClick={() => setReportClaim(claim)}
+                              >
+                                <Eye className="mr-1 h-3.5 w-3.5" />
+                                View Report
+                              </Button>
+                              <Button
+                                size="sm"
                                 className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
                                 onClick={() =>
                                   updateClaimStatus(claim.id, "approved")
@@ -117,16 +126,14 @@ const OfficerDashboard = () => {
                             </>
                           ) : (
                             <>
-                              {claim.status === "approved" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setReportClaim(claim)}
-                                >
-                                  <FileText className="mr-1 h-3.5 w-3.5" />
-                                  Generate Report
-                                </Button>
-                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setReportClaim(claim)}
+                              >
+                                <FileText className="mr-1 h-3.5 w-3.5" />
+                                {claim.status === "approved" ? "Generate Report" : "View Report"}
+                              </Button>
                               <Badge
                                 variant="outline"
                                 className="text-xs text-muted-foreground"

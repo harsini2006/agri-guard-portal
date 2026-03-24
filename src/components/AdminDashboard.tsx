@@ -6,6 +6,7 @@ import {
   Activity,
   Cpu,
   FileText,
+  Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,9 @@ const AdminDashboard = () => {
     },
   ];
 
+  // Show all claims (not just approved) for report viewing
+  const claimsWithReports = claims.filter((c) => c.status === "approved" || c.status === "pending");
+
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
       <div className="flex items-center justify-between">
@@ -99,35 +103,14 @@ const AdminDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4 py-4">
-            {/* SVG ring */}
             <div className="relative h-40 w-40">
               <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  fill="none"
-                  stroke="hsl(var(--muted))"
-                  strokeWidth="10"
-                />
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  fill="none"
-                  stroke="hsl(var(--secondary))"
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(aiAccuracy / 100) * 2 * Math.PI * 52} ${2 * Math.PI * 52}`}
-                />
+                <circle cx="60" cy="60" r="52" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                <circle cx="60" cy="60" r="52" fill="none" stroke="hsl(var(--secondary))" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(aiAccuracy / 100) * 2 * Math.PI * 52} ${2 * Math.PI * 52}`} />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-foreground">
-                  {aiAccuracy}%
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Accuracy
-                </span>
+                <span className="text-3xl font-bold text-foreground">{aiAccuracy}%</span>
+                <span className="text-[11px] text-muted-foreground">Accuracy</span>
               </div>
             </div>
             <div className="w-full space-y-2">
@@ -139,46 +122,59 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent verified claims with report button */}
+        {/* Claims with report access */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <FileText className="h-5 w-5 text-secondary" />
-              Verified Claims — Reports
+              Claims — Reports
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {claims.filter((c) => c.status === "approved").length === 0 ? (
+            {claimsWithReports.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No verified claims yet.
+                No claims yet.
               </p>
             ) : (
-              <div className="space-y-2">
-                {claims
-                  .filter((c) => c.status === "approved")
-                  .map((claim) => (
-                    <div
-                      key={claim.id}
-                      className="flex items-center justify-between rounded-md border bg-muted/30 p-3"
-                    >
-                      <div>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                {claimsWithReports.map((claim) => (
+                  <div
+                    key={claim.id}
+                    className="flex items-center justify-between rounded-md border bg-muted/30 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-foreground">
                           {claim.id} — {claim.farmerName}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {claim.crop} · {claim.disease}
-                        </p>
+                        <Badge
+                          className={
+                            claim.status === "approved"
+                              ? "bg-secondary text-secondary-foreground text-[10px]"
+                              : "bg-accent text-accent-foreground text-[10px]"
+                          }
+                        >
+                          {claim.status === "approved" ? "Verified" : "Pending"}
+                        </Badge>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setReportClaim(claim)}
-                      >
-                        <FileText className="mr-1 h-3.5 w-3.5" />
-                        Report
-                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        {claim.crop} · {claim.disease}
+                      </p>
                     </div>
-                  ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-2 shrink-0"
+                      onClick={() => setReportClaim(claim)}
+                    >
+                      {claim.status === "pending" ? (
+                        <><Eye className="mr-1 h-3.5 w-3.5" />View Report</>
+                      ) : (
+                        <><FileText className="mr-1 h-3.5 w-3.5" />Report</>
+                      )}
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
