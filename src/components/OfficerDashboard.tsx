@@ -1,4 +1,10 @@
-import { ClipboardCheck, CheckCircle2, XCircle } from "lucide-react";
+import { useState } from "react";
+import {
+  ClipboardCheck,
+  CheckCircle2,
+  XCircle,
+  FileText,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,10 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useClaims } from "@/context/ClaimsContext";
+import { useClaims, type Claim } from "@/context/ClaimsContext";
+import ClaimReportModal from "@/components/ClaimReportModal";
 
 const OfficerDashboard = () => {
   const { claims, updateClaimStatus } = useClaims();
+  const [reportClaim, setReportClaim] = useState<Claim | null>(null);
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
@@ -21,7 +29,7 @@ const OfficerDashboard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5 text-secondary" />
-            Pending Verifications
+            Claims Verification Board
             {claims.length > 0 && (
               <Badge className="ml-2 bg-accent text-accent-foreground">
                 {claims.filter((c) => c.status === "pending").length} pending
@@ -49,7 +57,7 @@ const OfficerDashboard = () => {
                       colSpan={6}
                       className="py-12 text-center text-muted-foreground"
                     >
-                      No pending verifications at this time.
+                      No verifications at this time.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -77,39 +85,57 @@ const OfficerDashboard = () => {
                         >
                           {claim.status === "pending"
                             ? `AI: ${claim.aiConfidence}% conf.`
-                            : claim.status.charAt(0).toUpperCase() +
-                              claim.status.slice(1)}
+                            : claim.status === "approved"
+                            ? "Verified"
+                            : "Rejected"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {claim.status === "pending" ? (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                              onClick={() =>
-                                updateClaimStatus(claim.id, "approved")
-                              }
-                            >
-                              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                updateClaimStatus(claim.id, "rejected")
-                              }
-                            >
-                              <XCircle className="mr-1 h-3.5 w-3.5" />
-                              Reject
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Decision made
-                          </span>
-                        )}
+                        <div className="flex justify-end gap-2">
+                          {claim.status === "pending" ? (
+                            <>
+                              <Button
+                                size="sm"
+                                className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                                onClick={() =>
+                                  updateClaimStatus(claim.id, "approved")
+                                }
+                              >
+                                <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                                Verify
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() =>
+                                  updateClaimStatus(claim.id, "rejected")
+                                }
+                              >
+                                <XCircle className="mr-1 h-3.5 w-3.5" />
+                                Reject
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              {claim.status === "approved" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setReportClaim(claim)}
+                                >
+                                  <FileText className="mr-1 h-3.5 w-3.5" />
+                                  Generate Report
+                                </Button>
+                              )}
+                              <Badge
+                                variant="outline"
+                                className="text-xs text-muted-foreground"
+                              >
+                                Done
+                              </Badge>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -119,6 +145,12 @@ const OfficerDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      <ClaimReportModal
+        claim={reportClaim}
+        open={!!reportClaim}
+        onClose={() => setReportClaim(null)}
+      />
     </div>
   );
 };
