@@ -87,6 +87,16 @@ All colors MUST be HSL.
   }
 }
 
+@layer components {
+  @keyframes scan-line {
+    0% { top: 0; }
+    100% { top: 100%; }
+  }
+  .animate-scan-line {
+    animation: scan-line 1.5s ease-in-out infinite;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
