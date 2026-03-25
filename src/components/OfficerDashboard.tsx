@@ -42,7 +42,8 @@ const OfficerDashboard = () => {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <ClaimsFilter claims={claims} onFiltered={setFilteredClaims} />
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -56,17 +57,17 @@ const OfficerDashboard = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {claims.length === 0 ? (
+                {displayClaims.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={6}
                       className="py-12 text-center text-muted-foreground"
                     >
-                      No verifications at this time.
+                      No matching claims found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  claims.map((claim) => (
+                  displayClaims.map((claim) => (
                     <TableRow key={claim.id}>
                       <TableCell className="font-mono text-sm font-semibold">
                         {claim.id}
