@@ -8,34 +8,16 @@ import {
   CheckCircle2,
   Send,
   Leaf,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useClaims } from "@/context/ClaimsContext";
+import { analyzeCropImage, getUserGeolocation, type AiResult } from "@/services/cropAnalysis";
 
-type Phase = "idle" | "scanning" | "result" | "submitted";
-
-interface AiResult {
-  disease: string;
-  damagePct: number;
-  aiConfidence: number;
-  crop: string;
-  healthy: boolean;
-}
-
-const detectFromFilename = (filename: string): AiResult => {
-  const lower = filename.toLowerCase();
-  if (lower.includes("crop1"))
-    return { disease: "Paddy Leaf Blast", damagePct: 45, aiConfidence: 92, crop: "Paddy", healthy: false };
-  if (lower.includes("crop2"))
-    return { disease: "Wheat Rust", damagePct: 38, aiConfidence: 94, crop: "Wheat", healthy: false };
-  if (lower.includes("crop3"))
-    return { disease: "Cotton Aphids", damagePct: 60, aiConfidence: 89, crop: "Cotton", healthy: false };
-  // crop4 or anything else
-  return { disease: "Healthy Crop", damagePct: 0, aiConfidence: 99, crop: "Mixed Crop", healthy: true };
-};
+type Phase = "idle" | "connecting" | "scanning" | "result" | "submitted";
 
 const FARMER_NAME = "Ramesh Kumar";
 
@@ -45,16 +27,26 @@ const FarmerDashboard = () => {
   const [progress, setProgress] = useState(0);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [result, setResult] = useState<AiResult | null>(null);
+  const [geoCoords, setGeoCoords] = useState<{ lat: string; lng: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const startAnalysis = useCallback((file: File) => {
+  const startAnalysis = useCallback(async (file: File) => {
     const url = URL.createObjectURL(file);
     setImageUrl(url);
-    const detected = detectFromFilename(file.name);
+    setPhase("connecting");
+
+    // Fetch geolocation in parallel with AI analysis
+    const [aiResult, geo] = await Promise.all([
+      analyzeCropImage(file),
+      getUserGeolocation(),
+    ]);
+
+    setGeoCoords(geo);
+
+    // Now run scanning animation (1.5s visual)
     setPhase("scanning");
     setProgress(0);
-
-    const duration = 3000;
+    const duration = 1500;
     const interval = 50;
     let elapsed = 0;
 
@@ -63,7 +55,7 @@ const FarmerDashboard = () => {
       setProgress(Math.min((elapsed / duration) * 100, 100));
       if (elapsed >= duration) {
         clearInterval(timer);
-        setResult(detected);
+        setResult(aiResult);
         setPhase("result");
       }
     }, interval);
@@ -94,14 +86,17 @@ const FarmerDashboard = () => {
       disease: result.disease,
       damagePct: result.damagePct,
       aiConfidence: result.aiConfidence,
+      gpsLat: geoCoords?.lat ?? "Location Unavailable",
+      gpsLng: geoCoords?.lng ?? "Location Unavailable",
     });
     setPhase("submitted");
     setTimeout(() => {
       setPhase("idle");
       setImageUrl(null);
       setResult(null);
+      setGeoCoords(null);
     }, 2000);
-  }, [addClaim, result]);
+  }, [addClaim, result, geoCoords]);
 
   const farmerClaims = claims.filter((c) => c.farmerName === FARMER_NAME);
 
@@ -133,7 +128,6 @@ const FarmerDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Hidden file input */}
             <input
               ref={fileRef}
               type="file"
@@ -159,14 +153,23 @@ const FarmerDashboard = () => {
               </button>
             )}
 
+            {phase === "connecting" && imageUrl && (
+              <div className="space-y-4">
+                <div className="relative overflow-hidden rounded-md">
+                  <img src={imageUrl} alt="Crop being analyzed" className="w-full rounded-md object-cover opacity-60" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-primary/20">
+                    <Loader2 className="h-10 w-10 animate-spin text-secondary" />
+                    <p className="mt-3 text-sm font-semibold text-foreground">Connecting to AI Server...</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Establishing secure connection</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {phase === "scanning" && imageUrl && (
               <div className="space-y-4">
                 <div className="relative overflow-hidden rounded-md">
-                  <img
-                    src={imageUrl}
-                    alt="Crop being analyzed"
-                    className="w-full rounded-md object-cover"
-                  />
+                  <img src={imageUrl} alt="Crop being analyzed" className="w-full rounded-md object-cover" />
                   <div className="absolute inset-0 bg-primary/10" />
                   <div className="animate-scan-line absolute left-0 h-0.5 w-full bg-secondary shadow-[0_0_8px_hsl(var(--secondary))]" />
                 </div>
@@ -186,13 +189,9 @@ const FarmerDashboard = () => {
             {(phase === "result" || phase === "submitted") && imageUrl && result && (
               <div className="space-y-4">
                 <div className="relative overflow-hidden rounded-md">
-                  <img
-                    src={imageUrl}
-                    alt="Analyzed crop"
-                    className="w-full rounded-md object-cover"
-                  />
+                  <img src={imageUrl} alt="Analyzed crop" className="w-full rounded-md object-cover" />
                   <div className="absolute right-2 top-2">
-                    <Badge className={result.healthy ? "bg-secondary text-secondary-foreground" : "bg-secondary text-secondary-foreground"}>
+                    <Badge className="bg-secondary text-secondary-foreground">
                       <CheckCircle2 className="mr-1 h-3 w-3" /> Analysis Complete
                     </Badge>
                   </div>
@@ -227,6 +226,12 @@ const FarmerDashboard = () => {
                       </p>
                     </div>
                   </div>
+
+                  {geoCoords && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      📍 GPS: {geoCoords.lat}, {geoCoords.lng}
+                    </p>
+                  )}
 
                   {phase === "result" && (
                     <Button

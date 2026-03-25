@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -5,7 +6,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Shield, MapPin, Calendar, User, IndianRupee, Cpu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Shield, MapPin, Calendar, User, IndianRupee, Cpu, Download } from "lucide-react";
 import type { Claim } from "@/context/ClaimsContext";
 
 interface Props {
@@ -19,9 +21,13 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
 
   const now = new Date();
 
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
+      <DialogContent className="print-report max-h-[90vh] max-w-2xl overflow-y-auto p-0">
         {/* Official header */}
         <div className="bg-primary px-6 py-4 text-primary-foreground">
           <DialogHeader>
@@ -29,7 +35,7 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-foreground/10 ring-2 ring-primary-foreground/30">
                 <Shield className="h-7 w-7" />
               </div>
-              <div>
+              <div className="flex-1">
                 <DialogTitle className="text-lg font-bold text-primary-foreground">
                   PMFBY Official Claim Report
                 </DialogTitle>
@@ -37,6 +43,15 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
                   Pradhan Mantri Fasal Bima Yojana — Government of India
                 </p>
               </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="print-hide text-primary-foreground hover:bg-primary-foreground/10"
+                onClick={handlePrint}
+              >
+                <Download className="mr-1 h-4 w-4" />
+                PDF
+              </Button>
             </div>
           </DialogHeader>
         </div>
