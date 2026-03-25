@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -19,10 +19,14 @@ import {
 } from "@/components/ui/table";
 import { useClaims, type Claim } from "@/context/ClaimsContext";
 import ClaimReportModal from "@/components/ClaimReportModal";
+import ClaimsFilter from "@/components/ClaimsFilter";
 
 const OfficerDashboard = () => {
   const { claims, updateClaimStatus } = useClaims();
   const [reportClaim, setReportClaim] = useState<Claim | null>(null);
+  const [filteredClaims, setFilteredClaims] = useState<Claim[] | null>(null);
+
+  const displayClaims = filteredClaims ?? claims;
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
