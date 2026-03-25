@@ -9,6 +9,8 @@ import {
   Send,
   Leaf,
   Loader2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useClaims } from "@/context/ClaimsContext";
 import { analyzeCropImage, getUserGeolocation, type AiResult } from "@/services/cropAnalysis";
+import ClaimStepper from "@/components/ClaimStepper";
 
 type Phase = "idle" | "connecting" | "scanning" | "result" | "submitted";
 
@@ -28,6 +31,7 @@ const FarmerDashboard = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [result, setResult] = useState<AiResult | null>(null);
   const [geoCoords, setGeoCoords] = useState<{ lat: string; lng: string } | null>(null);
+  const [expandedClaim, setExpandedClaim] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const startAnalysis = useCallback(async (file: File) => {
