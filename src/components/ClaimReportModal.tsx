@@ -17,13 +17,13 @@ interface Props {
 }
 
 const ClaimReportModal = ({ claim, open, onClose }: Props) => {
-  if (!claim) return null;
-
   const now = new Date();
 
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
+
+  if (!claim) return null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
