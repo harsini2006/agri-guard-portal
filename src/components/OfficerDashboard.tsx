@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -19,10 +19,14 @@ import {
 } from "@/components/ui/table";
 import { useClaims, type Claim } from "@/context/ClaimsContext";
 import ClaimReportModal from "@/components/ClaimReportModal";
+import ClaimsFilter from "@/components/ClaimsFilter";
 
 const OfficerDashboard = () => {
   const { claims, updateClaimStatus } = useClaims();
   const [reportClaim, setReportClaim] = useState<Claim | null>(null);
+  const [filteredClaims, setFilteredClaims] = useState<Claim[] | null>(null);
+
+  const displayClaims = filteredClaims ?? claims;
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
@@ -38,7 +42,8 @@ const OfficerDashboard = () => {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <ClaimsFilter claims={claims} onFiltered={setFilteredClaims} />
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -52,17 +57,17 @@ const OfficerDashboard = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {claims.length === 0 ? (
+                {displayClaims.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={6}
                       className="py-12 text-center text-muted-foreground"
                     >
-                      No verifications at this time.
+                      No matching claims found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  claims.map((claim) => (
+                  displayClaims.map((claim) => (
                     <TableRow key={claim.id}>
                       <TableCell className="font-mono text-sm font-semibold">
                         {claim.id}

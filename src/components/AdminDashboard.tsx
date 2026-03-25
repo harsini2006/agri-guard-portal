@@ -14,10 +14,12 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useClaims, type Claim } from "@/context/ClaimsContext";
 import ClaimReportModal from "@/components/ClaimReportModal";
+import ClaimsFilter from "@/components/ClaimsFilter";
 
 const AdminDashboard = () => {
   const { claims } = useClaims();
   const [reportClaim, setReportClaim] = useState<Claim | null>(null);
+  const [filteredClaims, setFilteredClaims] = useState<Claim[] | null>(null);
 
   const totalClaims = claims.length;
   const approved = claims.filter((c) => c.status === "approved").length;
@@ -59,8 +61,10 @@ const AdminDashboard = () => {
     },
   ];
 
-  // Show all claims (not just approved) for report viewing
   const claimsWithReports = claims.filter((c) => c.status === "approved" || c.status === "pending");
+  const displayClaims = filteredClaims
+    ? filteredClaims.filter((c) => c.status === "approved" || c.status === "pending")
+    : claimsWithReports;
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
@@ -130,14 +134,15 @@ const AdminDashboard = () => {
               Claims — Reports
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {claimsWithReports.length === 0 ? (
+          <CardContent className="space-y-4">
+            <ClaimsFilter claims={claims} onFiltered={setFilteredClaims} />
+            {displayClaims.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No claims yet.
+                No matching claims found.
               </p>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                {claimsWithReports.map((claim) => (
+                {displayClaims.map((claim) => (
                   <div
                     key={claim.id}
                     className="flex items-center justify-between rounded-md border bg-muted/30 p-3"

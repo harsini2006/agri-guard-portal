@@ -9,6 +9,8 @@ import {
   Send,
   Leaf,
   Loader2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useClaims } from "@/context/ClaimsContext";
 import { analyzeCropImage, getUserGeolocation, type AiResult } from "@/services/cropAnalysis";
+import ClaimStepper from "@/components/ClaimStepper";
 
 type Phase = "idle" | "connecting" | "scanning" | "result" | "submitted";
 
@@ -28,6 +31,7 @@ const FarmerDashboard = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [result, setResult] = useState<AiResult | null>(null);
   const [geoCoords, setGeoCoords] = useState<{ lat: string; lng: string } | null>(null);
+  const [expandedClaim, setExpandedClaim] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const startAnalysis = useCallback(async (file: File) => {
@@ -271,37 +275,57 @@ const FarmerDashboard = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {farmerClaims.map((claim) => (
-                  <div
-                    key={claim.id}
-                    className="flex items-center justify-between rounded-md border bg-muted/30 p-3"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{claim.id}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {claim.disease} · {claim.dateFiled}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        claim.status === "approved"
-                          ? "default"
-                          : claim.status === "rejected"
-                          ? "destructive"
-                          : "secondary"
-                      }
-                      className={
-                        claim.status === "approved"
-                          ? "bg-secondary text-secondary-foreground"
-                          : claim.status === "pending"
-                          ? "bg-accent text-accent-foreground"
-                          : ""
-                      }
+                {farmerClaims.map((claim) => {
+                  const isExpanded = expandedClaim === claim.id;
+                  return (
+                    <div
+                      key={claim.id}
+                      className="rounded-md border bg-muted/30 transition-all"
                     >
-                      {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
-                    </Badge>
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between p-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{claim.id}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {claim.disease} · {claim.dateFiled}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              claim.status === "approved"
+                                ? "default"
+                                : claim.status === "rejected"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                            className={
+                              claim.status === "approved"
+                                ? "bg-secondary text-secondary-foreground"
+                                : claim.status === "pending"
+                                ? "bg-accent text-accent-foreground"
+                                : ""
+                            }
+                          >
+                            {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground"
+                            onClick={() => setExpandedClaim(isExpanded ? null : claim.id)}
+                          >
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="border-t px-3 pb-3">
+                          <ClaimStepper claim={claim} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
