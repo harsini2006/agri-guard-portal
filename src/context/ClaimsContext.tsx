@@ -179,7 +179,7 @@ let claimCounter = 1009;
 
 interface ClaimsContextType {
   claims: Claim[];
-  addClaim: (claim: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "gpsLat" | "gpsLng" | "premiumPaid" | "estCompensation" | "district" | "state">) => void;
+  addClaim: (claim: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state">) => void;
   updateClaimStatus: (id: string, status: "approved" | "rejected") => void;
 }
 
@@ -189,7 +189,7 @@ export const ClaimsProvider = ({ children }: { children: ReactNode }) => {
   const [claims, setClaims] = useState<Claim[]>(SEED_CLAIMS);
 
   const addClaim = useCallback(
-    (data: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "gpsLat" | "gpsLng" | "premiumPaid" | "estCompensation" | "district" | "state">) => {
+    (data: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state">) => {
       claimCounter += 1;
       const newClaim: Claim = {
         ...data,
@@ -197,8 +197,6 @@ export const ClaimsProvider = ({ children }: { children: ReactNode }) => {
         farmerId: `PMFBY-KA-${Math.floor(10000 + Math.random() * 90000)}`,
         status: "pending",
         dateFiled: new Date().toLocaleDateString("en-IN"),
-        gpsLat: (12.9 + Math.random() * 0.5).toFixed(4),
-        gpsLng: (77.5 + Math.random() * 0.5).toFixed(4),
         premiumPaid: 1200,
         estCompensation: 15000,
         district: "Bengaluru Rural",
