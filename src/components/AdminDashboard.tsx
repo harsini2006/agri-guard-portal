@@ -134,14 +134,15 @@ const AdminDashboard = () => {
               Claims — Reports
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {claimsWithReports.length === 0 ? (
+          <CardContent className="space-y-4">
+            <ClaimsFilter claims={claims} onFiltered={setFilteredClaims} />
+            {displayClaims.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No claims yet.
+                No matching claims found.
               </p>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                {claimsWithReports.map((claim) => (
+                {displayClaims.map((claim) => (
                   <div
                     key={claim.id}
                     className="flex items-center justify-between rounded-md border bg-muted/30 p-3"
