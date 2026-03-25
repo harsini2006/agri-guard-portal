@@ -14,10 +14,12 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useClaims, type Claim } from "@/context/ClaimsContext";
 import ClaimReportModal from "@/components/ClaimReportModal";
+import ClaimsFilter from "@/components/ClaimsFilter";
 
 const AdminDashboard = () => {
   const { claims } = useClaims();
   const [reportClaim, setReportClaim] = useState<Claim | null>(null);
+  const [filteredClaims, setFilteredClaims] = useState<Claim[] | null>(null);
 
   const totalClaims = claims.length;
   const approved = claims.filter((c) => c.status === "approved").length;
