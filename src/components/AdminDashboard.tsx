@@ -61,8 +61,10 @@ const AdminDashboard = () => {
     },
   ];
 
-  // Show all claims (not just approved) for report viewing
   const claimsWithReports = claims.filter((c) => c.status === "approved" || c.status === "pending");
+  const displayClaims = filteredClaims
+    ? filteredClaims.filter((c) => c.status === "approved" || c.status === "pending")
+    : claimsWithReports;
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
