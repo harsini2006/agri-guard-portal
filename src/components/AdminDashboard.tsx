@@ -10,6 +10,8 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import UserManagement from "@/components/UserManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -117,190 +119,203 @@ const AdminDashboard = () => {
         </Badge>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                {s.title}
-              </CardTitle>
-              <s.icon className={`h-4 w-4 ${s.color}`} />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-foreground">{s.value}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {s.description}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Tabs defaultValue="analytics" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="analytics">Analytics Overview</TabsTrigger>
+          <TabsTrigger value="users">User Management</TabsTrigger>
+        </TabsList>
 
-      {/* Charts row */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Bar Chart - Claims by Region */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Claims by Region
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={regionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="district" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="claims" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <TabsContent value="analytics" className="space-y-6">
+          {/* Stat cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {stats.map((s) => (
+              <Card key={s.title}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-xs font-medium text-muted-foreground">
+                    {s.title}
+                  </CardTitle>
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-foreground">{s.value}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {s.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-        {/* Donut Chart - Disease Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <PieChartIcon className="h-5 w-5 text-accent" />
-              Disease Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={diseaseData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={95}
-                  paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, value }) => `${name} ${value}%`}
-                  labelLine={false}
-                >
-                  {diseaseData.map((_, idx) => (
-                    <Cell key={idx} fill={DISEASE_COLORS[idx]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => `${value}%`}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: 11 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Charts row */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Bar Chart - Claims by Region */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  Claims by Region
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={regionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="district" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Bar dataKey="claims" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* AI Accuracy Ring */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Cpu className="h-5 w-5 text-accent" />
-              AI Diagnostic Accuracy
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4 py-4">
-            <div className="relative h-40 w-40">
-              <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-                <circle cx="60" cy="60" r="52" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-                <circle cx="60" cy="60" r="52" fill="none" stroke="hsl(var(--secondary))" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(aiAccuracy / 100) * 2 * Math.PI * 52} ${2 * Math.PI * 52}`} />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-foreground">{aiAccuracy}%</span>
-                <span className="text-[11px] text-muted-foreground">Accuracy</span>
-              </div>
-            </div>
-            <div className="w-full space-y-2">
-              <MetricBar label="Wheat Rust Detection" value={96} />
-              <MetricBar label="Pest Infestation" value={91} />
-              <MetricBar label="Hail Damage" value={88} />
-              <MetricBar label="Leaf Blast" value={97} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Claims with report access */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-5 w-5 text-secondary" />
-              Claims — Reports
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ClaimsFilter claims={claims} onFiltered={setFilteredClaims} />
-            {displayClaims.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No matching claims found.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                {displayClaims.map((claim) => (
-                  <div
-                    key={claim.id}
-                    className="flex items-center justify-between rounded-md border bg-muted/30 p-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {claim.id} — {claim.farmerName}
-                        </p>
-                        <Badge
-                          className={
-                            claim.status === "approved"
-                              ? "bg-secondary text-secondary-foreground text-[10px]"
-                              : "bg-accent text-accent-foreground text-[10px]"
-                          }
-                        >
-                          {claim.status === "approved" ? "Verified" : "Pending"}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {claim.crop} · {claim.disease}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-2 shrink-0"
-                      onClick={() => setReportClaim(claim)}
+            {/* Donut Chart - Disease Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <PieChartIcon className="h-5 w-5 text-accent" />
+                  Disease Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={diseaseData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={95}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, value }) => `${name} ${value}%`}
+                      labelLine={false}
                     >
-                      {claim.status === "pending" ? (
-                        <><Eye className="mr-1 h-3.5 w-3.5" />View Report</>
-                      ) : (
-                        <><FileText className="mr-1 h-3.5 w-3.5" />Report</>
-                      )}
-                    </Button>
+                      {diseaseData.map((_, idx) => (
+                        <Cell key={idx} fill={DISEASE_COLORS[idx]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => `${value}%`}
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 11 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* AI Accuracy Ring */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Cpu className="h-5 w-5 text-accent" />
+                  AI Diagnostic Accuracy
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-4 py-4">
+                <div className="relative h-40 w-40">
+                  <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="hsl(var(--secondary))" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(aiAccuracy / 100) * 2 * Math.PI * 52} ${2 * Math.PI * 52}`} />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-bold text-foreground">{aiAccuracy}%</span>
+                    <span className="text-[11px] text-muted-foreground">Accuracy</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                </div>
+                <div className="w-full space-y-2">
+                  <MetricBar label="Wheat Rust Detection" value={96} />
+                  <MetricBar label="Pest Infestation" value={91} />
+                  <MetricBar label="Hail Damage" value={88} />
+                  <MetricBar label="Leaf Blast" value={97} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Claims with report access */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-5 w-5 text-secondary" />
+                  Claims — Reports
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ClaimsFilter claims={claims} onFiltered={setFilteredClaims} />
+                {displayClaims.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No matching claims found.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                    {displayClaims.map((claim) => (
+                      <div
+                        key={claim.id}
+                        className="flex items-center justify-between rounded-md border bg-muted/30 p-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-foreground">
+                              {claim.id} — {claim.farmerName}
+                            </p>
+                            <Badge
+                              className={
+                                claim.status === "approved"
+                                  ? "bg-secondary text-secondary-foreground text-[10px]"
+                                  : "bg-accent text-accent-foreground text-[10px]"
+                              }
+                            >
+                              {claim.status === "approved" ? "Verified" : "Pending"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {claim.crop} · {claim.disease}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="ml-2 shrink-0"
+                          onClick={() => setReportClaim(claim)}
+                        >
+                          {claim.status === "pending" ? (
+                            <><Eye className="mr-1 h-3.5 w-3.5" />View Report</>
+                          ) : (
+                            <><FileText className="mr-1 h-3.5 w-3.5" />Report</>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <UserManagement />
+        </TabsContent>
+      </Tabs>
 
       <ClaimReportModal
         claim={reportClaim}
