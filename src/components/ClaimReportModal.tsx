@@ -7,8 +7,11 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Shield, MapPin, Calendar, User, IndianRupee, Cpu, Download } from "lucide-react";
+import { Shield, MapPin, Calendar, User, IndianRupee, Cpu, Download, CheckCircle2 } from "lucide-react";
 import type { Claim } from "@/context/ClaimsContext";
+import { useClaims } from "@/context/ClaimsContext";
+
+const BASE_COVERAGE = 50000;
 
 interface Props {
   claim: Claim | null;
@@ -18,12 +21,20 @@ interface Props {
 
 const ClaimReportModal = ({ claim, open, onClose }: Props) => {
   const now = new Date();
+  const { updateClaimStatus } = useClaims();
 
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
 
   if (!claim) return null;
+
+  const calculatedPayout = Math.round(BASE_COVERAGE * (claim.damagePct / 100));
+
+  const handleApprove = () => {
+    updateClaimStatus(claim.id, "approved");
+    onClose();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -148,23 +159,45 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
 
           <Separator />
 
-          {/* Premium Details */}
+          {/* Financial Overview */}
           <section>
             <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-foreground">
               <IndianRupee className="h-4 w-4 text-secondary" />
-              Premium &amp; Compensation
+              Financial Overview
             </h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Field
-                label="Premium Paid"
-                value={`₹${claim.premiumPaid.toLocaleString("en-IN")}`}
-              />
-              <Field
-                label="Est. Compensation"
-                value={`₹${claim.estCompensation.toLocaleString("en-IN")}`}
-                highlight
-              />
+            <div className="rounded-md border bg-muted/40 p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <Field
+                  label="Base Coverage (per hectare)"
+                  value={`₹${BASE_COVERAGE.toLocaleString("en-IN")}`}
+                />
+                <Field
+                  label="Premium Paid"
+                  value={`₹${claim.premiumPaid.toLocaleString("en-IN")}`}
+                />
+              </div>
+              <div className="rounded-md border-2 border-secondary/30 bg-secondary/5 px-4 py-3 text-center">
+                <p className="text-[11px] font-medium text-muted-foreground">
+                  Calculated Payout ({claim.damagePct}% damage)
+                </p>
+                <p className="mt-1 text-xl font-bold text-secondary">
+                  ₹{calculatedPayout.toLocaleString("en-IN")}
+                </p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  ₹{BASE_COVERAGE.toLocaleString("en-IN")} × {claim.damagePct}%
+                </p>
+              </div>
             </div>
+
+            {claim.status === "pending" && (
+              <Button
+                className="print-hide mt-3 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                onClick={handleApprove}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Approve &amp; Process Payout
+              </Button>
+            )}
           </section>
 
           <Separator />

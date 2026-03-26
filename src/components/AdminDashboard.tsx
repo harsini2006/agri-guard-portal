@@ -7,6 +7,8 @@ import {
   Cpu,
   FileText,
   Eye,
+  BarChart3,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,40 @@ import { Badge } from "@/components/ui/badge";
 import { useClaims, type Claim } from "@/context/ClaimsContext";
 import ClaimReportModal from "@/components/ClaimReportModal";
 import ClaimsFilter from "@/components/ClaimsFilter";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+
+const regionData = [
+  { district: "Lucknow", claims: 42 },
+  { district: "Bhopal", claims: 35 },
+  { district: "Jaipur", claims: 28 },
+  { district: "Pune", claims: 19 },
+];
+
+const diseaseData = [
+  { name: "Paddy Blast", value: 40 },
+  { name: "Wheat Rust", value: 35 },
+  { name: "Cotton Aphids", value: 15 },
+  { name: "Healthy", value: 10 },
+];
+
+const DISEASE_COLORS = [
+  "hsl(var(--accent))",
+  "hsl(var(--secondary))",
+  "hsl(var(--primary))",
+  "hsl(210 60% 65%)",
+];
 
 const AdminDashboard = () => {
   const { claims } = useClaims();
@@ -61,9 +97,13 @@ const AdminDashboard = () => {
     },
   ];
 
-  const claimsWithReports = claims.filter((c) => c.status === "approved" || c.status === "pending");
+  const claimsWithReports = claims.filter(
+    (c) => c.status === "approved" || c.status === "pending"
+  );
   const displayClaims = filteredClaims
-    ? filteredClaims.filter((c) => c.status === "approved" || c.status === "pending")
+    ? filteredClaims.filter(
+        (c) => c.status === "approved" || c.status === "pending"
+      )
     : claimsWithReports;
 
   return (
@@ -95,6 +135,82 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Charts row */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Bar Chart - Claims by Region */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Claims by Region
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={regionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="district" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="claims" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Donut Chart - Disease Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PieChartIcon className="h-5 w-5 text-accent" />
+              Disease Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={diseaseData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={95}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, value }) => `${name} ${value}%`}
+                  labelLine={false}
+                >
+                  {diseaseData.map((_, idx) => (
+                    <Cell key={idx} fill={DISEASE_COLORS[idx]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => `${value}%`}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 11 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
