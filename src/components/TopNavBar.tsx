@@ -1,9 +1,10 @@
-import { Shield, ChevronDown } from "lucide-react";
+import { Shield, ChevronDown, Bell } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +15,21 @@ const roleLabels: Record<UserRole, string> = {
   officer: "Insurance Officer",
   admin: "Admin",
 };
+
+const notifications = [
+  {
+    id: 1,
+    type: "warning" as const,
+    message: "⚠️ Weather Advisory: Heavy rainfall expected in Lucknow district over the next 48 hours. Protect harvested crops.",
+    date: "Today",
+  },
+  {
+    id: 2,
+    type: "success" as const,
+    message: "✅ Claim CLM-1002 has been successfully verified by the Insurance Officer.",
+    date: "Yesterday",
+  },
+];
 
 interface TopNavBarProps {
   role: UserRole;
@@ -46,29 +62,63 @@ const TopNavBar = ({ role, onRoleChange }: TopNavBarProps) => {
             </div>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
-              >
-                <span className="hidden sm:inline">Role:&nbsp;</span>
-                {roleLabels[role]}
-                <ChevronDown className="ml-1 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {(Object.keys(roleLabels) as UserRole[]).map((r) => (
-                <DropdownMenuItem
-                  key={r}
-                  onClick={() => onRoleChange(r)}
-                  className={r === role ? "bg-muted font-semibold" : ""}
+          <div className="flex items-center gap-2">
+            {/* Notifications */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                 >
-                  {roleLabels[r]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                    2
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="px-3 py-2">
+                  <p className="text-sm font-semibold text-foreground">Notifications</p>
+                </div>
+                <DropdownMenuSeparator />
+                {notifications.map((n) => (
+                  <DropdownMenuItem
+                    key={n.id}
+                    className="flex flex-col items-start gap-1 whitespace-normal px-3 py-3"
+                  >
+                    <p className="text-xs leading-relaxed text-foreground">{n.message}</p>
+                    <span className="text-[10px] text-muted-foreground">{n.date}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Role switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+                >
+                  <span className="hidden sm:inline">Role:&nbsp;</span>
+                  {roleLabels[role]}
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {(Object.keys(roleLabels) as UserRole[]).map((r) => (
+                  <DropdownMenuItem
+                    key={r}
+                    onClick={() => onRoleChange(r)}
+                    className={r === role ? "bg-muted font-semibold" : ""}
+                  >
+                    {roleLabels[r]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
     </>
