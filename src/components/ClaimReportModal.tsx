@@ -100,6 +100,8 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
               <Field label="Farmer ID" value={claim.farmerId} />
               <Field label="District" value={claim.district} />
               <Field label="State" value={claim.state} />
+              <Field label="Area (Hectares)" value={`${claim.areaInHectares} ha`} />
+              <Field label="Sowing Date" value={claim.sowingDate} />
             </div>
           </section>
 
@@ -116,6 +118,10 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
               <Field label="Longitude" value={claim.gpsLng} />
               <Field label="Date Filed" value={claim.dateFiled} />
               <Field label="Crop Type" value={claim.crop} />
+              <Field label="Claim Created" value={new Date(claim.createdAt).toLocaleString("en-IN")} />
+              {claim.verifiedAt && (
+                <Field label="Verified At" value={new Date(claim.verifiedAt).toLocaleString("en-IN")} />
+              )}
             </div>
           </section>
 
