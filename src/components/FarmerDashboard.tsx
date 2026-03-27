@@ -92,6 +92,8 @@ const FarmerDashboard = () => {
       aiConfidence: result.aiConfidence,
       gpsLat: geoCoords?.lat ?? "Location Unavailable",
       gpsLng: geoCoords?.lng ?? "Location Unavailable",
+      areaInHectares: 1.5,
+      sowingDate: "01/11/2025",
     });
     setPhase("submitted");
     setTimeout(() => {
