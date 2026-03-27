@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 export interface Claim {
   id: string;
@@ -16,7 +16,14 @@ export interface Claim {
   estCompensation: number;
   district: string;
   state: string;
+  // New expanded schema fields
+  areaInHectares: number;
+  sowingDate: string;
+  createdAt: string;
+  verifiedAt: string | null;
 }
+
+const STORAGE_KEY = "pmfby_claims";
 
 const SEED_CLAIMS: Claim[] = [
   {
@@ -35,6 +42,10 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 24000,
     district: "Latur",
     state: "Maharashtra",
+    areaInHectares: 2.5,
+    sowingDate: "15/06/2025",
+    createdAt: "2026-03-18T10:30:00Z",
+    verifiedAt: null,
   },
   {
     id: "CLM-1002",
@@ -52,6 +63,10 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 15000,
     district: "Lucknow",
     state: "Uttar Pradesh",
+    areaInHectares: 1.8,
+    sowingDate: "01/11/2025",
+    createdAt: "2026-03-12T09:15:00Z",
+    verifiedAt: "2026-03-14T14:20:00Z",
   },
   {
     id: "CLM-1003",
@@ -69,6 +84,10 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 35000,
     district: "Jodhpur",
     state: "Rajasthan",
+    areaInHectares: 3.2,
+    sowingDate: "20/06/2025",
+    createdAt: "2026-03-15T11:45:00Z",
+    verifiedAt: null,
   },
   {
     id: "CLM-1004",
@@ -86,6 +105,10 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 18000,
     district: "Trichy",
     state: "Tamil Nadu",
+    areaInHectares: 1.5,
+    sowingDate: "10/07/2025",
+    createdAt: "2026-03-08T08:00:00Z",
+    verifiedAt: "2026-03-10T16:30:00Z",
   },
   {
     id: "CLM-1005",
@@ -103,8 +126,11 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 12000,
     district: "Ludhiana",
     state: "Punjab",
+    areaInHectares: 2.0,
+    sowingDate: "05/11/2025",
+    createdAt: "2026-03-05T07:30:00Z",
+    verifiedAt: "2026-03-07T12:00:00Z",
   },
-  // 4 new pending claims
   {
     id: "CLM-1006",
     farmerName: "Ramesh Kumar",
@@ -121,6 +147,10 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 20000,
     district: "Kanpur",
     state: "Uttar Pradesh",
+    areaInHectares: 1.6,
+    sowingDate: "12/07/2025",
+    createdAt: "2026-03-20T10:00:00Z",
+    verifiedAt: null,
   },
   {
     id: "CLM-1007",
@@ -138,6 +168,10 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 16000,
     district: "Bhopal",
     state: "Madhya Pradesh",
+    areaInHectares: 2.1,
+    sowingDate: "08/11/2025",
+    createdAt: "2026-03-21T09:30:00Z",
+    verifiedAt: null,
   },
   {
     id: "CLM-1008",
@@ -155,6 +189,10 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 30000,
     district: "Barmer",
     state: "Rajasthan",
+    areaInHectares: 3.5,
+    sowingDate: "18/06/2025",
+    createdAt: "2026-03-22T11:15:00Z",
+    verifiedAt: null,
   },
   {
     id: "CLM-1009",
@@ -172,35 +210,76 @@ const SEED_CLAIMS: Claim[] = [
     estCompensation: 22000,
     district: "Lucknow",
     state: "Uttar Pradesh",
+    areaInHectares: 1.8,
+    sowingDate: "01/11/2025",
+    createdAt: "2026-03-23T08:45:00Z",
+    verifiedAt: null,
   },
 ];
 
 let claimCounter = 1009;
 
+function loadClaims(): Claim[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Claim[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Update counter based on stored data
+        const maxId = parsed.reduce((max, c) => {
+          const num = parseInt(c.id.replace("CLM-", ""), 10);
+          return num > max ? num : max;
+        }, claimCounter);
+        claimCounter = maxId;
+        return parsed;
+      }
+    }
+  } catch {
+    // Corrupted data — fall back to seeds
+  }
+  return SEED_CLAIMS;
+}
+
+function saveClaims(claims: Claim[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(claims));
+  } catch {
+    // Storage full or unavailable — silent fail
+  }
+}
+
 interface ClaimsContextType {
   claims: Claim[];
-  addClaim: (claim: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state">) => void;
+  addClaim: (claim: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state" | "createdAt" | "verifiedAt">) => void;
   updateClaimStatus: (id: string, status: "approved" | "rejected") => void;
 }
 
 const ClaimsContext = createContext<ClaimsContextType | null>(null);
 
 export const ClaimsProvider = ({ children }: { children: ReactNode }) => {
-  const [claims, setClaims] = useState<Claim[]>(SEED_CLAIMS);
+  const [claims, setClaims] = useState<Claim[]>(loadClaims);
+
+  // Sync to localStorage on every change
+  useEffect(() => {
+    saveClaims(claims);
+  }, [claims]);
 
   const addClaim = useCallback(
-    (data: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state">) => {
+    (data: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state" | "createdAt" | "verifiedAt">) => {
       claimCounter += 1;
+      const now = new Date();
       const newClaim: Claim = {
         ...data,
         id: `CLM-${String(claimCounter).padStart(4, "0")}`,
         farmerId: `PMFBY-KA-${Math.floor(10000 + Math.random() * 90000)}`,
         status: "pending",
-        dateFiled: new Date().toLocaleDateString("en-IN"),
+        dateFiled: now.toLocaleDateString("en-IN"),
         premiumPaid: 1200,
         estCompensation: 15000,
         district: "Bengaluru Rural",
         state: "Karnataka",
+        createdAt: now.toISOString(),
+        verifiedAt: null,
       };
       setClaims((prev) => [newClaim, ...prev]);
     },
@@ -210,7 +289,11 @@ export const ClaimsProvider = ({ children }: { children: ReactNode }) => {
   const updateClaimStatus = useCallback(
     (id: string, status: "approved" | "rejected") => {
       setClaims((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, status } : c))
+        prev.map((c) =>
+          c.id === id
+            ? { ...c, status, verifiedAt: new Date().toISOString() }
+            : c
+        )
       );
     },
     []
