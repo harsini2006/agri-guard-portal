@@ -100,6 +100,8 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
               <Field label="Farmer ID" value={claim.farmerId} />
               <Field label="District" value={claim.district} />
               <Field label="State" value={claim.state} />
+              <Field label="Area (Hectares)" value={`${claim.areaInHectares} ha`} />
+              <Field label="Sowing Date" value={claim.sowingDate} />
             </div>
           </section>
 
