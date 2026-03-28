@@ -38,10 +38,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useClaims } from "@/context/ClaimsContext";
-import { analyzeCropImage, getUserGeolocation, type AiAnalysisResult } from "@/services/aiService";
+import { analyzeCropImage, getUserGeolocation, type AiResult } from "@/services/cropAnalysis";
 import ClaimStepper from "@/components/ClaimStepper";
 
-type Phase = "idle" | "analyzing" | "scanning" | "result";
+type Phase = "idle" | "connecting" | "scanning" | "result";
 type WizardStep = 1 | 2;
 
 const FARMER_NAME = "Ramesh Kumar";
@@ -55,8 +55,7 @@ const FarmerDashboard = () => {
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [result, setResult] = useState<AiAnalysisResult | null>(null);
-  const [usedFallback, setUsedFallback] = useState(false);
+  const [result, setResult] = useState<AiResult | null>(null);
   const [geoCoords, setGeoCoords] = useState<{ lat: string; lng: string } | null>(null);
   const [expandedClaim, setExpandedClaim] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -67,57 +66,34 @@ const FarmerDashboard = () => {
   const [areaHectares, setAreaHectares] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // --- Step 1: AI analysis via real API service ---
+  // --- Step 1: AI analysis (unchanged logic) ---
   const startAnalysis = useCallback(async (file: File) => {
     const url = URL.createObjectURL(file);
     setImageUrl(url);
-    setPhase("analyzing");
+    setPhase("connecting");
+
+    const [aiResult, geo] = await Promise.all([
+      analyzeCropImage(file),
+      getUserGeolocation(),
+    ]);
+
+    setGeoCoords(geo);
+
+    setPhase("scanning");
     setProgress(0);
+    const duration = 1500;
+    const interval = 50;
+    let elapsed = 0;
 
-    try {
-      const [apiResponse, geo] = await Promise.all([
-        analyzeCropImage(file),
-        getUserGeolocation(),
-      ]);
-
-      setGeoCoords(geo);
-      setUsedFallback(apiResponse.usedFallback);
-
-      if (apiResponse.usedFallback) {
-        toast.warning("AI Server Unavailable", {
-          description:
-            "Connection Error: Unable to reach the AI Analysis Server. Using local fallback analysis. Please verify the backend is active.",
-          duration: 7000,
-        });
+    const timer = setInterval(() => {
+      elapsed += interval;
+      setProgress(Math.min((elapsed / duration) * 100, 100));
+      if (elapsed >= duration) {
+        clearInterval(timer);
+        setResult(aiResult);
+        setPhase("result");
       }
-
-      // Transition to scanning animation
-      setPhase("scanning");
-      setProgress(0);
-      const duration = 1500;
-      const interval = 50;
-      let elapsed = 0;
-
-      const timer = setInterval(() => {
-        elapsed += interval;
-        setProgress(Math.min((elapsed / duration) * 100, 100));
-        if (elapsed >= duration) {
-          clearInterval(timer);
-          setResult(apiResponse.result);
-          setPhase("result");
-        }
-      }, interval);
-    } catch (error) {
-      console.error("[FarmerDashboard] Analysis failed:", error);
-      toast.error("Connection Error", {
-        description:
-          "Unable to reach the AI Analysis Server. Please verify the backend is active and try again.",
-        duration: 7000,
-      });
-      // Reset to idle so farmer can retry
-      setPhase("idle");
-      setImageUrl(null);
-    }
+    }, interval);
   }, []);
 
   const handleFileChange = useCallback(
@@ -265,15 +241,13 @@ const FarmerDashboard = () => {
                   </button>
                 )}
 
-                {phase === "analyzing" && imageUrl && (
+                {phase === "connecting" && imageUrl && (
                   <div className="relative overflow-hidden rounded-md">
                     <img src={imageUrl} alt="Crop being analyzed" className="w-full rounded-md object-cover opacity-60" />
-                    {/* Glowing scan line animation */}
-                    <div className="animate-scan-line absolute left-0 h-1 w-full bg-gradient-to-r from-transparent via-secondary to-transparent shadow-[0_0_15px_hsl(var(--secondary)),0_0_30px_hsl(var(--secondary)/0.5)]" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-primary/30 backdrop-blur-[1px]">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-primary/20">
                       <Loader2 className="h-10 w-10 animate-spin text-secondary" />
-                      <p className="mt-3 text-sm font-semibold text-foreground">Transmitting to AI Server...</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Uploading image for disease analysis</p>
+                      <p className="mt-3 text-sm font-semibold text-foreground">Connecting to AI Server...</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Establishing secure connection</p>
                     </div>
                   </div>
                 )}
@@ -303,8 +277,8 @@ const FarmerDashboard = () => {
                     <div className="relative overflow-hidden rounded-md">
                       <img src={imageUrl} alt="Analyzed crop" className="w-full rounded-md object-cover" />
                       <div className="absolute right-2 top-2">
-                      <Badge className={usedFallback ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"}>
-                          <CheckCircle2 className="mr-1 h-3 w-3" /> {usedFallback ? "Local Analysis" : "AI Analysis Complete"}
+                        <Badge className="bg-secondary text-secondary-foreground">
+                          <CheckCircle2 className="mr-1 h-3 w-3" /> Analysis Complete
                         </Badge>
                       </div>
                     </div>
