@@ -38,7 +38,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useClaims } from "@/context/ClaimsContext";
-import { analyzeCropImage, getUserGeolocation, type AiAnalysisResult } from "@/services/aiService";
+import { analyzeImagePixels, type PixelAnalysisResult } from "@/services/pixelAnalysis";
+import { getUserGeolocation } from "@/services/aiService";
 import ClaimStepper from "@/components/ClaimStepper";
 
 type Phase = "idle" | "analyzing" | "scanning" | "result";
@@ -50,75 +51,70 @@ const CROP_OPTIONS = ["Paddy", "Wheat", "Cotton", "Soybean"] as const;
 const FarmerDashboard = () => {
   const { claims, addClaim } = useClaims();
 
-  // Wizard state
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [result, setResult] = useState<AiAnalysisResult | null>(null);
-  const [usedFallback, setUsedFallback] = useState(false);
+  const [result, setResult] = useState<PixelAnalysisResult | null>(null);
   const [geoCoords, setGeoCoords] = useState<{ lat: string; lng: string } | null>(null);
   const [expandedClaim, setExpandedClaim] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Step 2 form state
+  // Crop type is now required BEFORE scan
   const [cropType, setCropType] = useState("");
+  // Step 2 form state
   const [sowingDate, setSowingDate] = useState<Date | undefined>();
   const [areaHectares, setAreaHectares] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // --- Step 1: AI analysis via real API service ---
-  const startAnalysis = useCallback(async (file: File) => {
-    const url = URL.createObjectURL(file);
-    setImageUrl(url);
-    setPhase("analyzing");
-    setProgress(0);
-
-    try {
-      const [apiResponse, geo] = await Promise.all([
-        analyzeCropImage(file),
-        getUserGeolocation(),
-      ]);
-
-      setGeoCoords(geo);
-      setUsedFallback(apiResponse.usedFallback);
-
-      if (apiResponse.usedFallback) {
-        toast.warning("AI Server Unavailable", {
-          description:
-            "Connection Error: Unable to reach the AI Analysis Server. Using local fallback analysis. Please verify the backend is active.",
-          duration: 7000,
-        });
+  const startAnalysis = useCallback(
+    async (file: File) => {
+      if (!cropType) {
+        toast.error("Please select a crop type before uploading.");
+        return;
       }
 
-      // Transition to scanning animation
-      setPhase("scanning");
+      const url = URL.createObjectURL(file);
+      setImageUrl(url);
+      setPhase("analyzing");
       setProgress(0);
-      const duration = 1500;
-      const interval = 50;
-      let elapsed = 0;
 
-      const timer = setInterval(() => {
-        elapsed += interval;
-        setProgress(Math.min((elapsed / duration) * 100, 100));
-        if (elapsed >= duration) {
-          clearInterval(timer);
-          setResult(apiResponse.result);
-          setPhase("result");
-        }
-      }, interval);
-    } catch (error) {
-      console.error("[FarmerDashboard] Analysis failed:", error);
-      toast.error("Connection Error", {
-        description:
-          "Unable to reach the AI Analysis Server. Please verify the backend is active and try again.",
-        duration: 7000,
-      });
-      // Reset to idle so farmer can retry
-      setPhase("idle");
-      setImageUrl(null);
-    }
-  }, []);
+      try {
+        const [pixelResult, geo] = await Promise.all([
+          analyzeImagePixels(file, cropType as "Paddy" | "Wheat" | "Cotton" | "Soybean"),
+          getUserGeolocation(),
+        ]);
+
+        setGeoCoords(geo);
+
+        // Scanning animation for 2 seconds
+        setPhase("scanning");
+        setProgress(0);
+        const duration = 2000;
+        const interval = 50;
+        let elapsed = 0;
+
+        const timer = setInterval(() => {
+          elapsed += interval;
+          setProgress(Math.min((elapsed / duration) * 100, 100));
+          if (elapsed >= duration) {
+            clearInterval(timer);
+            setResult(pixelResult);
+            setPhase("result");
+          }
+        }, interval);
+      } catch (error) {
+        console.error("[FarmerDashboard] Pixel analysis failed:", error);
+        toast.error("Analysis Error", {
+          description: "Failed to process the image. Please try uploading again.",
+          duration: 5000,
+        });
+        setPhase("idle");
+        setImageUrl(null);
+      }
+    },
+    [cropType]
+  );
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,10 +133,8 @@ const FarmerDashboard = () => {
     [startAnalysis]
   );
 
-  // --- Step 2: Validation & Submit ---
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!cropType) errors.cropType = "Please select a crop type";
     if (!sowingDate) errors.sowingDate = "Please select a sowing date";
     const area = parseFloat(areaHectares);
     if (!areaHectares.trim() || isNaN(area) || area <= 0) {
@@ -155,7 +149,7 @@ const FarmerDashboard = () => {
   const handleSubmit = useCallback(() => {
     if (!result || !validateForm()) return;
 
-    const claimId = addClaim({
+    addClaim({
       farmerName: FARMER_NAME,
       crop: cropType || result.crop,
       disease: result.disease,
@@ -172,7 +166,6 @@ const FarmerDashboard = () => {
       duration: 5000,
     });
 
-    // Reset wizard
     setTimeout(() => {
       setWizardStep(1);
       setPhase("idle");
@@ -186,7 +179,7 @@ const FarmerDashboard = () => {
     }, 500);
   }, [addClaim, result, geoCoords, cropType, sowingDate, areaHectares]);
 
-  const isStep2Valid = cropType && sowingDate && parseFloat(areaHectares) > 0;
+  const isStep2Valid = sowingDate && parseFloat(areaHectares) > 0;
 
   const farmerClaims = claims.filter((c) => c.farmerName === FARMER_NAME);
 
@@ -225,7 +218,6 @@ const FarmerDashboard = () => {
                 </>
               )}
             </CardTitle>
-            {/* Step indicator */}
             <div className="flex items-center gap-2 pt-2">
               <div className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors",
                 wizardStep >= 1 ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground"
@@ -248,32 +240,76 @@ const FarmerDashboard = () => {
             {/* ===== STEP 1: AI Image Scan ===== */}
             {wizardStep === 1 && (
               <>
+                {/* Crop type selector — required before upload */}
                 {phase === "idle" && (
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handleDrop}
-                    className="group flex w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/50 py-12 transition-colors hover:border-secondary hover:bg-secondary/5"
-                  >
-                    <Upload className="mb-3 h-10 w-10 text-muted-foreground transition-colors group-hover:text-secondary" />
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Drag &amp; drop or click to upload
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      JPG, PNG up to 10 MB
-                    </p>
-                  </button>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cropTypeStep1" className="text-sm font-medium">
+                        Crop Type <span className="text-destructive">*</span>
+                      </Label>
+                      <Select value={cropType} onValueChange={setCropType}>
+                        <SelectTrigger id="cropTypeStep1">
+                          <SelectValue placeholder="Select crop type first" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CROP_OPTIONS.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!cropType && (
+                        <p className="text-xs text-muted-foreground">
+                          Select crop type to enable image upload
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (!cropType) {
+                          toast.error("Please select a crop type before uploading.");
+                          return;
+                        }
+                        fileRef.current?.click();
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        if (!cropType) {
+                          e.preventDefault();
+                          toast.error("Please select a crop type before uploading.");
+                          return;
+                        }
+                        handleDrop(e);
+                      }}
+                      className={cn(
+                        "group flex w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed py-12 transition-colors",
+                        cropType
+                          ? "border-border bg-muted/50 hover:border-secondary hover:bg-secondary/5"
+                          : "border-muted bg-muted/20 opacity-60 cursor-not-allowed"
+                      )}
+                    >
+                      <Upload className={cn(
+                        "mb-3 h-10 w-10 transition-colors",
+                        cropType ? "text-muted-foreground group-hover:text-secondary" : "text-muted-foreground/50"
+                      )} />
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {cropType ? "Drag & drop or click to upload" : "Select crop type above first"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        JPG, PNG up to 10 MB
+                      </p>
+                    </button>
+                  </div>
                 )}
 
                 {phase === "analyzing" && imageUrl && (
                   <div className="relative overflow-hidden rounded-md">
                     <img src={imageUrl} alt="Crop being analyzed" className="w-full rounded-md object-cover opacity-60" />
-                    {/* Glowing scan line animation */}
                     <div className="animate-scan-line absolute left-0 h-1 w-full bg-gradient-to-r from-transparent via-secondary to-transparent shadow-[0_0_15px_hsl(var(--secondary)),0_0_30px_hsl(var(--secondary)/0.5)]" />
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-primary/30 backdrop-blur-[1px]">
                       <Loader2 className="h-10 w-10 animate-spin text-secondary" />
-                      <p className="mt-3 text-sm font-semibold text-foreground">Transmitting to AI Server...</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Uploading image for disease analysis</p>
+                      <p className="mt-3 text-sm font-semibold text-foreground">Analyzing Pixel Data...</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Processing RGB channels for {cropType} disease markers</p>
                     </div>
                   </div>
                 )}
@@ -288,11 +324,11 @@ const FarmerDashboard = () => {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <ScanLine className="h-4 w-4 animate-pulse text-secondary" />
-                        Analyzing via AI...
+                        Running Canvas Pixel Analysis...
                       </div>
                       <Progress value={progress} className="h-2" />
                       <p className="text-xs text-muted-foreground">
-                        Processing image through crop disease detection model
+                        Classifying healthy vs damaged pixels for {cropType}
                       </p>
                     </div>
                   </div>
@@ -303,8 +339,8 @@ const FarmerDashboard = () => {
                     <div className="relative overflow-hidden rounded-md">
                       <img src={imageUrl} alt="Analyzed crop" className="w-full rounded-md object-cover" />
                       <div className="absolute right-2 top-2">
-                      <Badge className={usedFallback ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"}>
-                          <CheckCircle2 className="mr-1 h-3 w-3" /> {usedFallback ? "Local Analysis" : "AI Analysis Complete"}
+                        <Badge className="bg-secondary text-secondary-foreground">
+                          <CheckCircle2 className="mr-1 h-3 w-3" /> Pixel Analysis Complete
                         </Badge>
                       </div>
                     </div>
@@ -339,8 +375,15 @@ const FarmerDashboard = () => {
                         </div>
                       </div>
 
+                      {/* Pixel stats */}
+                      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>📊 {result.pixelsAnalyzed.toLocaleString()} pixels analyzed</span>
+                        <span className="text-secondary">🟢 {result.healthyPixels.toLocaleString()} healthy</span>
+                        <span className="text-destructive">🔴 {result.damagedPixels.toLocaleString()} damaged</span>
+                      </div>
+
                       {geoCoords && (
-                        <p className="mt-3 text-xs text-muted-foreground">
+                        <p className="mt-2 text-xs text-muted-foreground">
                           📍 GPS: {geoCoords.lat}, {geoCoords.lng}
                         </p>
                       )}
@@ -375,22 +418,12 @@ const FarmerDashboard = () => {
                   <Badge className="bg-secondary text-secondary-foreground text-[10px]">AI ✓</Badge>
                 </div>
 
-                {/* Crop Type */}
+                {/* Crop type display (already selected in Step 1) */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="cropType" className="text-sm font-medium">
-                    Crop Type <span className="text-destructive">*</span>
-                  </Label>
-                  <Select value={cropType} onValueChange={(v) => { setCropType(v); setFormErrors(prev => ({ ...prev, cropType: "" })); }}>
-                    <SelectTrigger id="cropType" className={cn(formErrors.cropType && "border-destructive")}>
-                      <SelectValue placeholder="Select crop type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CROP_OPTIONS.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.cropType && <p className="text-xs text-destructive">{formErrors.cropType}</p>}
+                  <Label className="text-sm font-medium">Crop Type</Label>
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium text-foreground">
+                    {cropType}
+                  </div>
                 </div>
 
                 {/* Sowing Date */}
