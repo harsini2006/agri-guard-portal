@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Users,
   FileBarChart,
@@ -33,25 +33,13 @@ import {
   Legend,
 } from "recharts";
 
-const regionData = [
-  { district: "Lucknow", claims: 42 },
-  { district: "Bhopal", claims: 35 },
-  { district: "Jaipur", claims: 28 },
-  { district: "Pune", claims: 19 },
-];
-
-const diseaseData = [
-  { name: "Paddy Blast", value: 40 },
-  { name: "Wheat Rust", value: 35 },
-  { name: "Cotton Aphids", value: 15 },
-  { name: "Healthy", value: 10 },
-];
-
 const DISEASE_COLORS = [
   "hsl(var(--accent))",
   "hsl(var(--secondary))",
   "hsl(var(--primary))",
   "hsl(210 60% 65%)",
+  "hsl(280 60% 60%)",
+  "hsl(160 50% 50%)",
 ];
 
 const AdminDashboard = () => {
@@ -66,21 +54,83 @@ const AdminDashboard = () => {
   const verificationRate =
     totalClaims > 0 ? Math.round((approved / totalClaims) * 100) : 0;
 
-  const aiAccuracy = 94;
+  // Derive unique farmer count from claims
+  const uniqueFarmers = useMemo(() => {
+    const ids = new Set(claims.map((c) => c.farmerId));
+    return ids.size;
+  }, [claims]);
+
+  // Derive unique states from claims
+  const uniqueStates = useMemo(() => {
+    const states = new Set(claims.map((c) => c.state));
+    return states.size;
+  }, [claims]);
+
+  // Derive average AI confidence as "accuracy" metric
+  const aiAccuracy = useMemo(() => {
+    if (claims.length === 0) return 0;
+    const sum = claims.reduce((acc, c) => acc + c.aiConfidence, 0);
+    return Math.round(sum / claims.length);
+  }, [claims]);
+
+  // Derive per-disease accuracy metrics
+  const diseaseAccuracyMetrics = useMemo(() => {
+    const map = new Map<string, { total: number; sum: number }>();
+    for (const c of claims) {
+      if (c.disease === "Healthy Crop" || c.disease === "Analysis Unavailable") continue;
+      const existing = map.get(c.disease) || { total: 0, sum: 0 };
+      existing.total += 1;
+      existing.sum += c.aiConfidence;
+      map.set(c.disease, existing);
+    }
+    return Array.from(map.entries())
+      .map(([label, { total, sum }]) => ({
+        label,
+        value: Math.round(sum / total),
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 4);
+  }, [claims]);
+
+  // Derive region data from claims
+  const regionData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of claims) {
+      map.set(c.district, (map.get(c.district) || 0) + 1);
+    }
+    return Array.from(map.entries())
+      .map(([district, count]) => ({ district, claims: count }))
+      .sort((a, b) => b.claims - a.claims)
+      .slice(0, 8);
+  }, [claims]);
+
+  // Derive disease distribution from claims
+  const diseaseData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of claims) {
+      const name = c.disease.length > 20 ? c.disease.slice(0, 18) + "…" : c.disease;
+      map.set(name, (map.get(name) || 0) + 1);
+    }
+    const total = claims.length || 1;
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, value: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  }, [claims]);
 
   const stats = [
     {
       title: "Total Farmers Enrolled",
       icon: Users,
-      value: "1,245",
-      description: "Across 12 states under PMFBY",
+      value: uniqueFarmers.toLocaleString("en-IN"),
+      description: `Across ${uniqueStates} states under PMFBY`,
       color: "text-primary",
     },
     {
       title: "Claims Processed",
       icon: FileBarChart,
-      value: "890",
-      description: `${totalClaims} in current session`,
+      value: totalClaims.toLocaleString("en-IN"),
+      description: `${approved} approved, ${rejected} rejected`,
       color: "text-accent",
     },
     {
@@ -91,10 +141,10 @@ const AdminDashboard = () => {
       color: "text-secondary",
     },
     {
-      title: "System Health",
+      title: "Avg AI Confidence",
       icon: Activity,
-      value: "99.7%",
-      description: "All services operational",
+      value: `${aiAccuracy}%`,
+      description: `Across ${totalClaims} analyses`,
       color: "text-secondary",
     },
   ];
@@ -148,35 +198,37 @@ const AdminDashboard = () => {
 
           {/* Charts row */}
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Bar Chart - Claims by Region */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <BarChart3 className="h-5 w-5 text-primary" />
-                  Claims by Region
+                  Claims by District
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={regionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="district" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Bar dataKey="claims" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {regionData.length === 0 ? (
+                  <p className="py-12 text-center text-sm text-muted-foreground">No claims data yet.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={regionData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="district" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                      <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar dataKey="claims" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
-            {/* Donut Chart - Disease Distribution */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -185,39 +237,43 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={diseaseData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={95}
-                      paddingAngle={3}
-                      dataKey="value"
-                      label={({ name, value }) => `${name} ${value}%`}
-                      labelLine={false}
-                    >
-                      {diseaseData.map((_, idx) => (
-                        <Cell key={idx} fill={DISEASE_COLORS[idx]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number) => `${value}%`}
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Legend
-                      verticalAlign="bottom"
-                      iconType="circle"
-                      wrapperStyle={{ fontSize: 11 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                {diseaseData.length === 0 ? (
+                  <p className="py-12 text-center text-sm text-muted-foreground">No claims data yet.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={diseaseData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, value }) => `${name} ${value}%`}
+                        labelLine={false}
+                      >
+                        {diseaseData.map((_, idx) => (
+                          <Cell key={idx} fill={DISEASE_COLORS[idx % DISEASE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => `${value}%`}
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: 11 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -228,7 +284,7 @@ const AdminDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Cpu className="h-5 w-5 text-accent" />
-                  AI Diagnostic Accuracy
+                  AI Diagnostic Confidence
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col items-center gap-4 py-4">
@@ -239,14 +295,17 @@ const AdminDashboard = () => {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-3xl font-bold text-foreground">{aiAccuracy}%</span>
-                    <span className="text-[11px] text-muted-foreground">Accuracy</span>
+                    <span className="text-[11px] text-muted-foreground">Avg Confidence</span>
                   </div>
                 </div>
                 <div className="w-full space-y-2">
-                  <MetricBar label="Wheat Rust Detection" value={96} />
-                  <MetricBar label="Pest Infestation" value={91} />
-                  <MetricBar label="Hail Damage" value={88} />
-                  <MetricBar label="Leaf Blast" value={97} />
+                  {diseaseAccuracyMetrics.length > 0 ? (
+                    diseaseAccuracyMetrics.map((m) => (
+                      <MetricBar key={m.label} label={m.label} value={m.value} />
+                    ))
+                  ) : (
+                    <p className="text-center text-xs text-muted-foreground">No disease data yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
