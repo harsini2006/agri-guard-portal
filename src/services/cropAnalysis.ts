@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface AiResult {
   disease: string;
   damagePct: number;
@@ -6,27 +8,56 @@ export interface AiResult {
   healthy: boolean;
 }
 
-const detectFromFilename = (filename: string): AiResult => {
-  const lower = filename.toLowerCase();
-  if (lower.includes("crop1"))
-    return { disease: "Paddy Leaf Blast", damagePct: 45, aiConfidence: 92, crop: "Paddy", healthy: false };
-  if (lower.includes("crop2"))
-    return { disease: "Wheat Rust", damagePct: 38, aiConfidence: 94, crop: "Wheat", healthy: false };
-  if (lower.includes("crop3"))
-    return { disease: "Cotton Aphids", damagePct: 60, aiConfidence: 89, crop: "Cotton", healthy: false };
-  return { disease: "Healthy Crop", damagePct: 0, aiConfidence: 99, crop: "Mixed Crop", healthy: true };
-};
+/**
+ * Converts a File to a base64 string (without the data-url prefix).
+ */
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      // Strip "data:<mime>;base64," prefix
+      resolve(dataUrl.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 /**
- * Simulates an async API call to a Python AI backend.
- * Replace the setTimeout with a real fetch() call when the backend is ready.
+ * Sends the crop image to the AI-powered edge function for real disease analysis.
+ * Falls back to a basic result if the call fails.
  */
-export const analyzeCropImage = (file: File): Promise<AiResult> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(detectFromFilename(file.name));
-    }, 2500);
-  });
+export const analyzeCropImage = async (file: File): Promise<AiResult> => {
+  try {
+    const imageBase64 = await fileToBase64(file);
+    const mimeType = file.type || "image/jpeg";
+
+    const { data, error } = await supabase.functions.invoke("analyze-crop", {
+      body: { imageBase64, mimeType },
+    });
+
+    if (error) {
+      console.error("Edge function error:", error);
+      throw error;
+    }
+
+    if (data?.error) {
+      console.error("AI analysis error:", data.error);
+      throw new Error(data.error);
+    }
+
+    return data as AiResult;
+  } catch (err) {
+    console.error("Crop analysis failed, using fallback:", err);
+    // Fallback so the app doesn't break
+    return {
+      disease: "Analysis Unavailable",
+      damagePct: 0,
+      aiConfidence: 0,
+      crop: "Unknown",
+      healthy: false,
+    };
+  }
 };
 
 export const getUserGeolocation = (): Promise<{ lat: string; lng: string }> => {
