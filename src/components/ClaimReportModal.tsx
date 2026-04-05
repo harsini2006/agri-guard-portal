@@ -9,9 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Shield, MapPin, Calendar, User, IndianRupee, Cpu, Download, CheckCircle2 } from "lucide-react";
 import type { Claim } from "@/context/ClaimsContext";
-import { useClaims } from "@/context/ClaimsContext";
-
-const BASE_COVERAGE = 50000;
+import { useClaims, calculateFinancials } from "@/context/ClaimsContext";
 
 interface Props {
   claim: Claim | null;
@@ -29,7 +27,11 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
 
   if (!claim) return null;
 
-  const calculatedPayout = Math.round(BASE_COVERAGE * (claim.damagePct / 100));
+  // Use the same formula as addClaim for consistency
+  const { premiumPaid: computedPremium, estCompensation: computedPayout } = calculateFinancials(
+    claim.areaInHectares,
+    claim.damagePct
+  );
 
   const handleApprove = () => {
     updateClaimStatus(claim.id, "approved");
@@ -174,23 +176,31 @@ const ClaimReportModal = ({ claim, open, onClose }: Props) => {
             <div className="rounded-md border bg-muted/40 p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <Field
-                  label="Base Coverage (per hectare)"
-                  value={`₹${BASE_COVERAGE.toLocaleString("en-IN")}`}
+                  label="Sum Insured"
+                  value={`₹${(claim.areaInHectares * 50000).toLocaleString("en-IN")}`}
                 />
                 <Field
-                  label="Premium Paid"
+                  label="Premium Paid (2%)"
                   value={`₹${claim.premiumPaid.toLocaleString("en-IN")}`}
+                />
+                <Field
+                  label="Area Insured"
+                  value={`${claim.areaInHectares} hectares`}
+                />
+                <Field
+                  label="Damage Assessment"
+                  value={`${claim.damagePct}%`}
                 />
               </div>
               <div className="rounded-md border-2 border-secondary/30 bg-secondary/5 px-4 py-3 text-center">
                 <p className="text-[11px] font-medium text-muted-foreground">
-                  Calculated Payout ({claim.damagePct}% damage)
+                  Estimated Compensation
                 </p>
                 <p className="mt-1 text-xl font-bold text-secondary">
-                  ₹{calculatedPayout.toLocaleString("en-IN")}
+                  ₹{claim.estCompensation.toLocaleString("en-IN")}
                 </p>
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  ₹{BASE_COVERAGE.toLocaleString("en-IN")} × {claim.damagePct}%
+                  ₹{(claim.areaInHectares * 50000).toLocaleString("en-IN")} (sum insured) × {claim.damagePct}% (damage)
                 </p>
               </div>
             </div>

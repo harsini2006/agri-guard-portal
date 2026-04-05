@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Users } from "lucide-react";
 import { useClaims } from "@/context/ClaimsContext";
+import { toast } from "sonner";
 
 interface DerivedFarmer {
   id: string;
@@ -27,18 +28,17 @@ interface DerivedFarmer {
   crops: string;
   claimCount: number;
   hasRejected: boolean;
+  suspended: boolean;
 }
 
 const UserManagement = () => {
   const { claims } = useClaims();
 
-  // Derive unique farmers from real claims data
   const farmers = useMemo<DerivedFarmer[]>(() => {
     const map = new Map<string, DerivedFarmer>();
     for (const c of claims) {
       const existing = map.get(c.farmerId);
       if (existing) {
-        // Merge crops
         const cropSet = new Set(existing.crops.split(", "));
         cropSet.add(c.crop);
         existing.crops = Array.from(cropSet).join(", ");
@@ -52,11 +52,31 @@ const UserManagement = () => {
           crops: c.crop,
           claimCount: 1,
           hasRejected: c.status === "rejected",
+          suspended: false,
         });
       }
     }
     return Array.from(map.values());
   }, [claims]);
+
+  const handleEditProfile = (farmer: DerivedFarmer) => {
+    toast.info(`Opening profile editor for ${farmer.name}`, {
+      description: `Farmer ID: ${farmer.id} — ${farmer.state}`,
+    });
+  };
+
+  const handleSuspend = (farmer: DerivedFarmer) => {
+    toast.warning(`Account suspension initiated for ${farmer.name}`, {
+      description: `Farmer ID: ${farmer.id}. This action would require admin confirmation in a production system.`,
+      duration: 5000,
+    });
+  };
+
+  const handleViewClaims = (farmer: DerivedFarmer) => {
+    toast.info(`${farmer.name} has ${farmer.claimCount} claim(s)`, {
+      description: `Crops: ${farmer.crops} · State: ${farmer.state}`,
+    });
+  };
 
   return (
     <Card>
@@ -119,8 +139,16 @@ const UserManagement = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Edit Profile</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem onClick={() => handleViewClaims(f)}>
+                              View Claims
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditProfile(f)}>
+                              Edit Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleSuspend(f)}
+                            >
                               Suspend Account
                             </DropdownMenuItem>
                           </DropdownMenuContent>
