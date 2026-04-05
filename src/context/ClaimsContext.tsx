@@ -16,11 +16,23 @@ export interface Claim {
   estCompensation: number;
   district: string;
   state: string;
-  // New expanded schema fields
   areaInHectares: number;
   sowingDate: string;
   createdAt: string;
   verifiedAt: string | null;
+}
+
+// --- Premium & compensation calculation ---
+// PMFBY-style: premium = 2% of sum insured for Kharif, 1.5% for Rabi
+// Sum insured = area * per-hectare coverage
+const PER_HECTARE_COVERAGE = 50000; // ₹50,000 per hectare
+const PREMIUM_RATE = 0.02; // 2% of sum insured
+
+export function calculateFinancials(areaInHectares: number, damagePct: number) {
+  const sumInsured = areaInHectares * PER_HECTARE_COVERAGE;
+  const premiumPaid = Math.round(sumInsured * PREMIUM_RATE);
+  const estCompensation = Math.round(sumInsured * (damagePct / 100));
+  return { premiumPaid, estCompensation };
 }
 
 const STORAGE_KEY = "pmfby_claims";
@@ -38,8 +50,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "18/03/2026",
     gpsLat: "19.8762",
     gpsLng: "75.3433",
-    premiumPaid: 1800,
-    estCompensation: 24000,
+    premiumPaid: 2500,
+    estCompensation: 77500,
     district: "Latur",
     state: "Maharashtra",
     areaInHectares: 2.5,
@@ -59,8 +71,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "12/03/2026",
     gpsLat: "26.8467",
     gpsLng: "80.9462",
-    premiumPaid: 1200,
-    estCompensation: 15000,
+    premiumPaid: 1800,
+    estCompensation: 34200,
     district: "Lucknow",
     state: "Uttar Pradesh",
     areaInHectares: 1.8,
@@ -80,8 +92,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "15/03/2026",
     gpsLat: "25.2138",
     gpsLng: "73.7125",
-    premiumPaid: 2400,
-    estCompensation: 35000,
+    premiumPaid: 3200,
+    estCompensation: 120000,
     district: "Jodhpur",
     state: "Rajasthan",
     areaInHectares: 3.2,
@@ -102,7 +114,7 @@ const SEED_CLAIMS: Claim[] = [
     gpsLat: "10.7905",
     gpsLng: "78.7047",
     premiumPaid: 1500,
-    estCompensation: 18000,
+    estCompensation: 37500,
     district: "Trichy",
     state: "Tamil Nadu",
     areaInHectares: 1.5,
@@ -122,8 +134,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "05/03/2026",
     gpsLat: "30.9010",
     gpsLng: "75.8573",
-    premiumPaid: 1100,
-    estCompensation: 12000,
+    premiumPaid: 2000,
+    estCompensation: 28000,
     district: "Ludhiana",
     state: "Punjab",
     areaInHectares: 2.0,
@@ -143,8 +155,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "20/03/2026",
     gpsLat: "26.4499",
     gpsLng: "80.3319",
-    premiumPaid: 1400,
-    estCompensation: 20000,
+    premiumPaid: 1600,
+    estCompensation: 36000,
     district: "Kanpur",
     state: "Uttar Pradesh",
     areaInHectares: 1.6,
@@ -164,8 +176,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "21/03/2026",
     gpsLat: "23.2599",
     gpsLng: "77.4126",
-    premiumPaid: 1300,
-    estCompensation: 16000,
+    premiumPaid: 2100,
+    estCompensation: 39900,
     district: "Bhopal",
     state: "Madhya Pradesh",
     areaInHectares: 2.1,
@@ -185,8 +197,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "22/03/2026",
     gpsLat: "26.9124",
     gpsLng: "70.9000",
-    premiumPaid: 2200,
-    estCompensation: 30000,
+    premiumPaid: 3500,
+    estCompensation: 105000,
     district: "Barmer",
     state: "Rajasthan",
     areaInHectares: 3.5,
@@ -206,8 +218,8 @@ const SEED_CLAIMS: Claim[] = [
     dateFiled: "23/03/2026",
     gpsLat: "26.8467",
     gpsLng: "80.9462",
-    premiumPaid: 1200,
-    estCompensation: 22000,
+    premiumPaid: 1800,
+    estCompensation: 72000,
     district: "Lucknow",
     state: "Uttar Pradesh",
     areaInHectares: 1.8,
@@ -225,7 +237,6 @@ function loadClaims(): Claim[] {
     if (raw) {
       const parsed = JSON.parse(raw) as Claim[];
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Update counter based on stored data
         const maxId = parsed.reduce((max, c) => {
           const num = parseInt(c.id.replace("CLM-", ""), 10);
           return num > max ? num : max;
@@ -248,9 +259,24 @@ function saveClaims(claims: Claim[]) {
   }
 }
 
+// State code mapping for farmerId generation
+const STATE_CODES: Record<string, string> = {
+  "Andhra Pradesh": "AP", "Arunachal Pradesh": "AR", "Assam": "AS",
+  "Bihar": "BR", "Chhattisgarh": "CG", "Goa": "GA", "Gujarat": "GJ",
+  "Haryana": "HR", "Himachal Pradesh": "HP", "Jharkhand": "JH",
+  "Karnataka": "KA", "Kerala": "KL", "Madhya Pradesh": "MP",
+  "Maharashtra": "MH", "Manipur": "MN", "Meghalaya": "ML",
+  "Mizoram": "MZ", "Nagaland": "NL", "Odisha": "OD",
+  "Punjab": "PB", "Rajasthan": "RJ", "Sikkim": "SK",
+  "Tamil Nadu": "TN", "Telangana": "TS", "Tripura": "TR",
+  "Uttar Pradesh": "UP", "Uttarakhand": "UK", "West Bengal": "WB",
+};
+
+export type NewClaimData = Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "createdAt" | "verifiedAt">;
+
 interface ClaimsContextType {
   claims: Claim[];
-  addClaim: (claim: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state" | "createdAt" | "verifiedAt">) => void;
+  addClaim: (claim: NewClaimData) => void;
   updateClaimStatus: (id: string, status: "approved" | "rejected") => void;
 }
 
@@ -259,25 +285,25 @@ const ClaimsContext = createContext<ClaimsContextType | null>(null);
 export const ClaimsProvider = ({ children }: { children: ReactNode }) => {
   const [claims, setClaims] = useState<Claim[]>(loadClaims);
 
-  // Sync to localStorage on every change
   useEffect(() => {
     saveClaims(claims);
   }, [claims]);
 
   const addClaim = useCallback(
-    (data: Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "district" | "state" | "createdAt" | "verifiedAt">) => {
+    (data: NewClaimData) => {
       claimCounter += 1;
       const now = new Date();
+      const stateCode = STATE_CODES[data.state] || "XX";
+      const { premiumPaid, estCompensation } = calculateFinancials(data.areaInHectares, data.damagePct);
+
       const newClaim: Claim = {
         ...data,
         id: `CLM-${String(claimCounter).padStart(4, "0")}`,
-        farmerId: `PMFBY-KA-${Math.floor(10000 + Math.random() * 90000)}`,
+        farmerId: `PMFBY-${stateCode}-${Math.floor(10000 + Math.random() * 90000)}`,
         status: "pending",
         dateFiled: now.toLocaleDateString("en-IN"),
-        premiumPaid: 1200,
-        estCompensation: 15000,
-        district: "Bengaluru Rural",
-        state: "Karnataka",
+        premiumPaid,
+        estCompensation,
         createdAt: now.toISOString(),
         verifiedAt: null,
       };

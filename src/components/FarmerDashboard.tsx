@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Upload,
   FileText,
@@ -14,6 +14,8 @@ import {
   ArrowRight,
   ArrowLeft,
   CalendarIcon,
+  User,
+  MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,8 +46,16 @@ import ClaimStepper from "@/components/ClaimStepper";
 type Phase = "idle" | "connecting" | "scanning" | "result";
 type WizardStep = 1 | 2;
 
-const FARMER_NAME = "Ramesh Kumar";
-const CROP_OPTIONS = ["Paddy", "Wheat", "Cotton", "Soybean"] as const;
+const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya",
+  "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim",
+  "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
+  "West Bengal",
+];
+
+const CROP_OPTIONS = ["Paddy", "Wheat", "Cotton", "Soybean", "Maize", "Sugarcane", "Groundnut", "Mustard"] as const;
 
 const FarmerDashboard = () => {
   const { claims, addClaim } = useClaims();
@@ -61,12 +71,26 @@ const FarmerDashboard = () => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Step 2 form state
+  const [farmerName, setFarmerName] = useState("");
   const [cropType, setCropType] = useState("");
   const [sowingDate, setSowingDate] = useState<Date | undefined>();
   const [areaHectares, setAreaHectares] = useState("");
+  const [district, setDistrict] = useState("");
+  const [state, setState] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // --- Step 1: AI analysis (unchanged logic) ---
+  // Pre-fill crop type from AI result when moving to step 2
+  useEffect(() => {
+    if (wizardStep === 2 && result && !cropType) {
+      const aiCrop = result.crop;
+      const match = CROP_OPTIONS.find(
+        (c) => c.toLowerCase() === aiCrop.toLowerCase()
+      );
+      if (match) setCropType(match);
+    }
+  }, [wizardStep, result, cropType]);
+
+  // --- Step 1: AI analysis ---
   const startAnalysis = useCallback(async (file: File) => {
     const url = URL.createObjectURL(file);
     setImageUrl(url);
@@ -116,8 +140,11 @@ const FarmerDashboard = () => {
   // --- Step 2: Validation & Submit ---
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
+    if (!farmerName.trim()) errors.farmerName = "Please enter your full name";
     if (!cropType) errors.cropType = "Please select a crop type";
     if (!sowingDate) errors.sowingDate = "Please select a sowing date";
+    if (!district.trim()) errors.district = "Please enter your district";
+    if (!state) errors.state = "Please select your state";
     const area = parseFloat(areaHectares);
     if (!areaHectares.trim() || isNaN(area) || area <= 0) {
       errors.areaHectares = "Area must be greater than 0";
@@ -131,8 +158,8 @@ const FarmerDashboard = () => {
   const handleSubmit = useCallback(() => {
     if (!result || !validateForm()) return;
 
-    const claimId = addClaim({
-      farmerName: FARMER_NAME,
+    addClaim({
+      farmerName: farmerName.trim(),
       crop: cropType || result.crop,
       disease: result.disease,
       damagePct: result.damagePct,
@@ -141,6 +168,8 @@ const FarmerDashboard = () => {
       gpsLng: geoCoords?.lng ?? "Location Unavailable",
       areaInHectares: parseFloat(areaHectares),
       sowingDate: sowingDate ? format(sowingDate, "dd/MM/yyyy") : "",
+      district: district.trim(),
+      state,
     });
 
     toast.success("Claim submitted successfully!", {
@@ -155,16 +184,22 @@ const FarmerDashboard = () => {
       setImageUrl(null);
       setResult(null);
       setGeoCoords(null);
+      setFarmerName("");
       setCropType("");
       setSowingDate(undefined);
       setAreaHectares("");
+      setDistrict("");
+      setState("");
       setFormErrors({});
     }, 500);
-  }, [addClaim, result, geoCoords, cropType, sowingDate, areaHectares]);
+  }, [addClaim, result, geoCoords, farmerName, cropType, sowingDate, areaHectares, district, state]);
 
-  const isStep2Valid = cropType && sowingDate && parseFloat(areaHectares) > 0;
+  const isStep2Valid = farmerName.trim() && cropType && sowingDate && parseFloat(areaHectares) > 0 && district.trim() && state;
 
-  const farmerClaims = claims.filter((c) => c.farmerName === FARMER_NAME);
+  // Show all claims (no hardcoded filter)
+  const farmerClaims = farmerName.trim()
+    ? claims.filter((c) => c.farmerName.toLowerCase() === farmerName.trim().toLowerCase())
+    : claims.slice(0, 5);
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
@@ -174,11 +209,10 @@ const FarmerDashboard = () => {
           <Wheat className="h-8 w-8 text-secondary" />
           <div>
             <h2 className="text-xl font-bold text-foreground">
-              Welcome, {FARMER_NAME}
+              Farmer Claims Portal
             </h2>
             <p className="text-sm text-muted-foreground">
-              Manage your crop insurance claims and monitor status through the
-              PMFBY portal.
+              Submit and track your crop insurance claims through the PMFBY portal.
             </p>
           </div>
         </div>
@@ -197,7 +231,7 @@ const FarmerDashboard = () => {
               ) : (
                 <>
                   <FileText className="h-5 w-5 text-secondary" />
-                  Step 2: Farm Details
+                  Step 2: Farmer & Farm Details
                 </>
               )}
             </CardTitle>
@@ -332,9 +366,9 @@ const FarmerDashboard = () => {
               </>
             )}
 
-            {/* ===== STEP 2: Farm Details Form ===== */}
+            {/* ===== STEP 2: Farmer & Farm Details Form ===== */}
             {wizardStep === 2 && result && (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {/* AI summary mini-card */}
                 <div className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
                   {imageUrl && (
@@ -349,10 +383,63 @@ const FarmerDashboard = () => {
                   <Badge className="bg-secondary text-secondary-foreground text-[10px]">AI ✓</Badge>
                 </div>
 
+                {/* Farmer Name */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="farmerName" className="text-sm font-medium">
+                    <User className="mr-1 inline h-3.5 w-3.5" />
+                    Full Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="farmerName"
+                    placeholder="e.g. Ramesh Kumar"
+                    value={farmerName}
+                    onChange={(e) => { setFarmerName(e.target.value); setFormErrors(prev => ({ ...prev, farmerName: "" })); }}
+                    className={cn(formErrors.farmerName && "border-destructive")}
+                  />
+                  {formErrors.farmerName && <p className="text-xs text-destructive">{formErrors.farmerName}</p>}
+                </div>
+
+                {/* State & District row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">
+                      <MapPin className="mr-1 inline h-3.5 w-3.5" />
+                      State <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={state} onValueChange={(v) => { setState(v); setFormErrors(prev => ({ ...prev, state: "" })); }}>
+                      <SelectTrigger className={cn(formErrors.state && "border-destructive")}>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDIAN_STATES.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.state && <p className="text-xs text-destructive">{formErrors.state}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="district" className="text-sm font-medium">
+                      District <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="district"
+                      placeholder="e.g. Lucknow"
+                      value={district}
+                      onChange={(e) => { setDistrict(e.target.value); setFormErrors(prev => ({ ...prev, district: "" })); }}
+                      className={cn(formErrors.district && "border-destructive")}
+                    />
+                    {formErrors.district && <p className="text-xs text-destructive">{formErrors.district}</p>}
+                  </div>
+                </div>
+
                 {/* Crop Type */}
                 <div className="space-y-1.5">
                   <Label htmlFor="cropType" className="text-sm font-medium">
                     Crop Type <span className="text-destructive">*</span>
+                    {result.crop && result.crop !== "Unknown" && (
+                      <span className="ml-2 text-xs text-muted-foreground">(AI detected: {result.crop})</span>
+                    )}
                   </Label>
                   <Select value={cropType} onValueChange={(v) => { setCropType(v); setFormErrors(prev => ({ ...prev, cropType: "" })); }}>
                     <SelectTrigger id="cropType" className={cn(formErrors.cropType && "border-destructive")}>
@@ -448,7 +535,7 @@ const FarmerDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <FileText className="h-5 w-5 text-accent" />
-              My Recent Claims
+              Recent Claims
             </CardTitle>
           </CardHeader>
           <CardContent>
