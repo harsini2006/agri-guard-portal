@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -20,13 +20,26 @@ import {
 import { useClaims, type Claim } from "@/context/ClaimsContext";
 import ClaimReportModal from "@/components/ClaimReportModal";
 import ClaimsFilter from "@/components/ClaimsFilter";
+import ClaimActionDialog from "@/components/ClaimActionDialog";
 
 const OfficerDashboard = () => {
-  const { claims, updateClaimStatus } = useClaims();
+  const { claims } = useClaims();
   const [reportClaim, setReportClaim] = useState<Claim | null>(null);
   const [filteredClaims, setFilteredClaims] = useState<Claim[] | null>(null);
+  const [actionClaim, setActionClaim] = useState<Claim | null>(null);
+  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
 
   const displayClaims = filteredClaims ?? claims;
+
+  const startAction = (claim: Claim, type: "approve" | "reject") => {
+    setActionClaim(claim);
+    setActionType(type);
+  };
+
+  const closeAction = () => {
+    setActionClaim(null);
+    setActionType(null);
+  };
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8 md:px-6">
@@ -111,9 +124,7 @@ const OfficerDashboard = () => {
                               <Button
                                 size="sm"
                                 className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                                onClick={() =>
-                                  updateClaimStatus(claim.id, "approved")
-                                }
+                                onClick={() => startAction(claim, "approve")}
                               >
                                 <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
                                 Verify
@@ -121,9 +132,7 @@ const OfficerDashboard = () => {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() =>
-                                  updateClaimStatus(claim.id, "rejected")
-                                }
+                                onClick={() => startAction(claim, "reject")}
                               >
                                 <XCircle className="mr-1 h-3.5 w-3.5" />
                                 Reject
@@ -162,6 +171,12 @@ const OfficerDashboard = () => {
         claim={reportClaim}
         open={!!reportClaim}
         onClose={() => setReportClaim(null)}
+      />
+
+      <ClaimActionDialog
+        claim={actionClaim}
+        action={actionType}
+        onClose={closeAction}
       />
     </div>
   );

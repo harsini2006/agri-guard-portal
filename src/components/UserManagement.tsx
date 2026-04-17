@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
+import { MoreHorizontal, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,6 +16,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Users } from "lucide-react";
 import { useClaims } from "@/context/ClaimsContext";
@@ -28,11 +38,12 @@ interface DerivedFarmer {
   crops: string;
   claimCount: number;
   hasRejected: boolean;
-  suspended: boolean;
 }
 
 const UserManagement = () => {
-  const { claims } = useClaims();
+  const { claims, suspendedFarmerIds, toggleSuspendFarmer, resetDemoData } = useClaims();
+  const [suspendTarget, setSuspendTarget] = useState<DerivedFarmer | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const farmers = useMemo<DerivedFarmer[]>(() => {
     const map = new Map<string, DerivedFarmer>();
@@ -52,7 +63,6 @@ const UserManagement = () => {
           crops: c.crop,
           claimCount: 1,
           hasRejected: c.status === "rejected",
-          suspended: false,
         });
       }
     }
@@ -60,27 +70,46 @@ const UserManagement = () => {
   }, [claims]);
 
   const handleEditProfile = (farmer: DerivedFarmer) => {
-    toast.info(`Opening profile editor for ${farmer.name}`, {
-      description: `Farmer ID: ${farmer.id} — ${farmer.state}`,
-    });
-  };
-
-  const handleSuspend = (farmer: DerivedFarmer) => {
-    toast.warning(`Account suspension initiated for ${farmer.name}`, {
-      description: `Farmer ID: ${farmer.id}. This action would require admin confirmation in a production system.`,
-      duration: 5000,
+    toast.info(`Profile editor — ${farmer.name}`, {
+      description: `${farmer.id} · ${farmer.state} · ${farmer.claimCount} claim(s)`,
     });
   };
 
   const handleViewClaims = (farmer: DerivedFarmer) => {
-    toast.info(`${farmer.name} has ${farmer.claimCount} claim(s)`, {
-      description: `Crops: ${farmer.crops} · State: ${farmer.state}`,
+    const farmerClaims = claims.filter((c) => c.farmerId === farmer.id);
+    const ids = farmerClaims.map((c) => c.id).join(", ");
+    toast.info(`${farmer.name} — ${farmerClaims.length} claim(s)`, {
+      description: ids || "No claims found.",
+      duration: 6000,
     });
+  };
+
+  const confirmSuspend = () => {
+    if (!suspendTarget) return;
+    const nowSuspended = toggleSuspendFarmer(suspendTarget.id);
+    if (nowSuspended) {
+      toast.warning(`${suspendTarget.name} suspended`, {
+        description: `Farmer ${suspendTarget.id} can no longer file new claims.`,
+      });
+    } else {
+      toast.success(`${suspendTarget.name} reinstated`, {
+        description: `Farmer ${suspendTarget.id} can file claims again.`,
+      });
+    }
+    setSuspendTarget(null);
+  };
+
+  const handleResetDemo = () => {
+    resetDemoData();
+    toast.success("Demo data reset", {
+      description: "All claims and suspensions restored to defaults.",
+    });
+    setResetOpen(false);
   };
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="h-5 w-5 text-primary" />
           Registered Farmers
@@ -88,6 +117,14 @@ const UserManagement = () => {
             {farmers.length} farmers
           </Badge>
         </CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setResetOpen(true)}
+        >
+          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+          Reset Demo Data
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -112,24 +149,26 @@ const UserManagement = () => {
                 </TableRow>
               ) : (
                 farmers.map((f) => {
-                  const status = f.hasRejected ? "Flagged" : "Active";
+                  const isSuspended = suspendedFarmerIds.includes(f.id);
+                  const status = isSuspended
+                    ? "Suspended"
+                    : f.hasRejected
+                    ? "Flagged"
+                    : "Active";
+                  const badgeClass = isSuspended
+                    ? "bg-destructive text-destructive-foreground text-[10px]"
+                    : f.hasRejected
+                    ? "bg-accent text-accent-foreground text-[10px]"
+                    : "bg-secondary text-secondary-foreground text-[10px]";
                   return (
-                    <TableRow key={f.id}>
+                    <TableRow key={f.id} className={isSuspended ? "opacity-60" : ""}>
                       <TableCell className="font-mono text-sm font-semibold">{f.id}</TableCell>
                       <TableCell>{f.name}</TableCell>
                       <TableCell>{f.state}</TableCell>
                       <TableCell className="text-muted-foreground">{f.crops}</TableCell>
                       <TableCell className="font-semibold">{f.claimCount}</TableCell>
                       <TableCell>
-                        <Badge
-                          className={
-                            status === "Active"
-                              ? "bg-secondary text-secondary-foreground text-[10px]"
-                              : "bg-accent text-accent-foreground text-[10px]"
-                          }
-                        >
-                          {status}
-                        </Badge>
+                        <Badge className={badgeClass}>{status}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -146,10 +185,10 @@ const UserManagement = () => {
                               Edit Profile
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => handleSuspend(f)}
+                              className={isSuspended ? "text-secondary" : "text-destructive"}
+                              onClick={() => setSuspendTarget(f)}
                             >
-                              Suspend Account
+                              {isSuspended ? "Reinstate Account" : "Suspend Account"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -162,6 +201,59 @@ const UserManagement = () => {
           </Table>
         </div>
       </CardContent>
+
+      {/* Suspend confirmation */}
+      <AlertDialog open={!!suspendTarget} onOpenChange={(o) => !o && setSuspendTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {suspendTarget && suspendedFarmerIds.includes(suspendTarget.id)
+                ? `Reinstate ${suspendTarget.name}?`
+                : `Suspend ${suspendTarget?.name}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {suspendTarget && suspendedFarmerIds.includes(suspendTarget.id)
+                ? "This farmer will be able to file new claims again."
+                : "This farmer will be blocked from filing new claims until reinstated. Existing claims are preserved."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmSuspend}
+              className={
+                suspendTarget && suspendedFarmerIds.includes(suspendTarget.id)
+                  ? "bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                  : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              }
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset demo confirmation */}
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset all demo data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace all current claims with the original demo seed data
+              and clear all account suspensions. New claims you submitted will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetDemo}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
