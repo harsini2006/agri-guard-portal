@@ -158,7 +158,7 @@ const FarmerDashboard = () => {
   const handleSubmit = useCallback(() => {
     if (!result || !validateForm()) return;
 
-    addClaim({
+    const newId = addClaim({
       farmerName: farmerName.trim(),
       crop: cropType || result.crop,
       disease: result.disease,
@@ -173,8 +173,8 @@ const FarmerDashboard = () => {
     });
 
     toast.success("Claim submitted successfully!", {
-      description: `Your claim has been registered and is now pending review.`,
-      duration: 5000,
+      description: `Reference ID: ${newId} — your claim is now pending officer review.`,
+      duration: 6000,
     });
 
     // Reset wizard
@@ -184,12 +184,10 @@ const FarmerDashboard = () => {
       setImageUrl(null);
       setResult(null);
       setGeoCoords(null);
-      setFarmerName("");
       setCropType("");
       setSowingDate(undefined);
       setAreaHectares("");
-      setDistrict("");
-      setState("");
+      // keep farmerName, district, state so they can file again easily
       setFormErrors({});
     }, 500);
   }, [addClaim, result, geoCoords, farmerName, cropType, sowingDate, areaHectares, district, state]);
