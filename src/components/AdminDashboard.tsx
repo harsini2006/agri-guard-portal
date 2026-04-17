@@ -221,7 +221,7 @@ const AdminDashboard = () => {
 
         <TabsContent value="analytics" className="space-y-6">
           {/* Stat cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
             {stats.map((s) => (
               <Card key={s.title}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
