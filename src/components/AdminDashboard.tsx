@@ -9,6 +9,8 @@ import {
   Eye,
   BarChart3,
   PieChart as PieChartIcon,
+  IndianRupee,
+  TrendingUp,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserManagement from "@/components/UserManagement";
@@ -118,6 +120,27 @@ const AdminDashboard = () => {
       .slice(0, 6);
   }, [claims]);
 
+  // Financial KPIs from real claim data
+  const totalApprovedPayout = useMemo(
+    () => claims.filter((c) => c.status === "approved").reduce((sum, c) => sum + c.estCompensation, 0),
+    [claims]
+  );
+  const totalPendingPayout = useMemo(
+    () => claims.filter((c) => c.status === "pending").reduce((sum, c) => sum + c.estCompensation, 0),
+    [claims]
+  );
+  const avgPayout = useMemo(() => {
+    const approvedClaims = claims.filter((c) => c.status === "approved");
+    if (approvedClaims.length === 0) return 0;
+    return Math.round(totalApprovedPayout / approvedClaims.length);
+  }, [claims, totalApprovedPayout]);
+
+  const formatINR = (amount: number) => {
+    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)} L`;
+    return `₹${amount.toLocaleString("en-IN")}`;
+  };
+
   const stats = [
     {
       title: "Total Farmers Enrolled",
@@ -130,14 +153,14 @@ const AdminDashboard = () => {
       title: "Claims Processed",
       icon: FileBarChart,
       value: totalClaims.toLocaleString("en-IN"),
-      description: `${approved} approved, ${rejected} rejected`,
+      description: `${approved} approved, ${rejected} rejected, ${pending} pending`,
       color: "text-accent",
     },
     {
       title: "Verification Rate",
       icon: ShieldCheck,
       value: `${verificationRate}%`,
-      description: `${approved} approved, ${pending} pending, ${rejected} rejected`,
+      description: `${approved} verified out of ${totalClaims}`,
       color: "text-secondary",
     },
     {
@@ -146,6 +169,27 @@ const AdminDashboard = () => {
       value: `${aiAccuracy}%`,
       description: `Across ${totalClaims} analyses`,
       color: "text-secondary",
+    },
+    {
+      title: "Total Payout Authorised",
+      icon: IndianRupee,
+      value: formatINR(totalApprovedPayout),
+      description: `${approved} approved claim(s)`,
+      color: "text-secondary",
+    },
+    {
+      title: "Pending Liability",
+      icon: TrendingUp,
+      value: formatINR(totalPendingPayout),
+      description: `${pending} claim(s) awaiting review`,
+      color: "text-accent",
+    },
+    {
+      title: "Avg Compensation",
+      icon: IndianRupee,
+      value: approved > 0 ? formatINR(avgPayout) : "—",
+      description: "Per approved claim",
+      color: "text-primary",
     },
   ];
 
