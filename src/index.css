@@ -97,35 +97,6 @@ All colors MUST be HSL.
   }
 }
 
-@media print {
-  body > *:not(.print-report) {
-    display: none !important;
-  }
-  [data-radix-portal] > * {
-    visibility: hidden !important;
-  }
-  [data-radix-portal] .print-report {
-    visibility: visible !important;
-    position: static !important;
-    transform: none !important;
-    max-height: none !important;
-    overflow: visible !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
-  [data-radix-portal] [data-state="open"][class*="Overlay"] {
-    display: none !important;
-  }
-  .print-hide {
-    display: none !important;
-  }
-  /* Hide dialog close button in print */
-  .print-report button[class*="absolute"] {
-    display: none !important;
-  }
-}
 
 @layer base {
   * {
