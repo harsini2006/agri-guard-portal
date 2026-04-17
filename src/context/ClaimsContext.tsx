@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { SEED_CLAIMS, STATE_CODES } from "@/data/seedClaims";
 
 export interface Claim {
   id: string;
@@ -20,13 +21,12 @@ export interface Claim {
   sowingDate: string;
   createdAt: string;
   verifiedAt: string | null;
+  rejectionReason: string | null;
 }
 
-// --- Premium & compensation calculation ---
-// PMFBY-style: premium = 2% of sum insured for Kharif, 1.5% for Rabi
-// Sum insured = area * per-hectare coverage
-const PER_HECTARE_COVERAGE = 50000; // ₹50,000 per hectare
-const PREMIUM_RATE = 0.02; // 2% of sum insured
+// --- PMFBY-style financials ---
+const PER_HECTARE_COVERAGE = 50000;
+const PREMIUM_RATE = 0.02;
 
 export function calculateFinancials(areaInHectares: number, damagePct: number) {
   const sumInsured = areaInHectares * PER_HECTARE_COVERAGE;
@@ -36,198 +36,7 @@ export function calculateFinancials(areaInHectares: number, damagePct: number) {
 }
 
 const STORAGE_KEY = "pmfby_claims";
-
-const SEED_CLAIMS: Claim[] = [
-  {
-    id: "CLM-1001",
-    farmerName: "Suresh Patel",
-    farmerId: "PMFBY-MH-44821",
-    crop: "Soybean",
-    disease: "Pest Infestation (Spodoptera)",
-    damagePct: 62,
-    aiConfidence: 91,
-    status: "pending",
-    dateFiled: "18/03/2026",
-    gpsLat: "19.8762",
-    gpsLng: "75.3433",
-    premiumPaid: 2500,
-    estCompensation: 77500,
-    district: "Latur",
-    state: "Maharashtra",
-    areaInHectares: 2.5,
-    sowingDate: "15/06/2025",
-    createdAt: "2026-03-18T10:30:00Z",
-    verifiedAt: null,
-  },
-  {
-    id: "CLM-1002",
-    farmerName: "Anita Devi",
-    farmerId: "PMFBY-UP-73019",
-    crop: "Wheat",
-    disease: "Wheat Rust (Puccinia triticina)",
-    damagePct: 38,
-    aiConfidence: 94,
-    status: "approved",
-    dateFiled: "12/03/2026",
-    gpsLat: "26.8467",
-    gpsLng: "80.9462",
-    premiumPaid: 1800,
-    estCompensation: 34200,
-    district: "Lucknow",
-    state: "Uttar Pradesh",
-    areaInHectares: 1.8,
-    sowingDate: "01/11/2025",
-    createdAt: "2026-03-12T09:15:00Z",
-    verifiedAt: "2026-03-14T14:20:00Z",
-  },
-  {
-    id: "CLM-1003",
-    farmerName: "Rajendra Singh",
-    farmerId: "PMFBY-RJ-55204",
-    crop: "Cotton",
-    disease: "Localized Hail Damage",
-    damagePct: 75,
-    aiConfidence: 88,
-    status: "pending",
-    dateFiled: "15/03/2026",
-    gpsLat: "25.2138",
-    gpsLng: "73.7125",
-    premiumPaid: 3200,
-    estCompensation: 120000,
-    district: "Jodhpur",
-    state: "Rajasthan",
-    areaInHectares: 3.2,
-    sowingDate: "20/06/2025",
-    createdAt: "2026-03-15T11:45:00Z",
-    verifiedAt: null,
-  },
-  {
-    id: "CLM-1004",
-    farmerName: "Lakshmi Narayanan",
-    farmerId: "PMFBY-TN-68102",
-    crop: "Paddy",
-    disease: "Paddy Leaf Blast",
-    damagePct: 50,
-    aiConfidence: 96,
-    status: "rejected",
-    dateFiled: "08/03/2026",
-    gpsLat: "10.7905",
-    gpsLng: "78.7047",
-    premiumPaid: 1500,
-    estCompensation: 37500,
-    district: "Trichy",
-    state: "Tamil Nadu",
-    areaInHectares: 1.5,
-    sowingDate: "10/07/2025",
-    createdAt: "2026-03-08T08:00:00Z",
-    verifiedAt: "2026-03-10T16:30:00Z",
-  },
-  {
-    id: "CLM-1005",
-    farmerName: "Baldev Kaur",
-    farmerId: "PMFBY-PB-30457",
-    crop: "Wheat",
-    disease: "Pest Infestation (Aphids)",
-    damagePct: 28,
-    aiConfidence: 90,
-    status: "approved",
-    dateFiled: "05/03/2026",
-    gpsLat: "30.9010",
-    gpsLng: "75.8573",
-    premiumPaid: 2000,
-    estCompensation: 28000,
-    district: "Ludhiana",
-    state: "Punjab",
-    areaInHectares: 2.0,
-    sowingDate: "05/11/2025",
-    createdAt: "2026-03-05T07:30:00Z",
-    verifiedAt: "2026-03-07T12:00:00Z",
-  },
-  {
-    id: "CLM-1006",
-    farmerName: "Ramesh Kumar",
-    farmerId: "PMFBY-UP-73020",
-    crop: "Paddy",
-    disease: "Paddy Leaf Blast",
-    damagePct: 45,
-    aiConfidence: 92,
-    status: "pending",
-    dateFiled: "20/03/2026",
-    gpsLat: "26.4499",
-    gpsLng: "80.3319",
-    premiumPaid: 1600,
-    estCompensation: 36000,
-    district: "Kanpur",
-    state: "Uttar Pradesh",
-    areaInHectares: 1.6,
-    sowingDate: "12/07/2025",
-    createdAt: "2026-03-20T10:00:00Z",
-    verifiedAt: null,
-  },
-  {
-    id: "CLM-1007",
-    farmerName: "Sunita Patel",
-    farmerId: "PMFBY-MP-44012",
-    crop: "Wheat",
-    disease: "Wheat Rust",
-    damagePct: 38,
-    aiConfidence: 94,
-    status: "pending",
-    dateFiled: "21/03/2026",
-    gpsLat: "23.2599",
-    gpsLng: "77.4126",
-    premiumPaid: 2100,
-    estCompensation: 39900,
-    district: "Bhopal",
-    state: "Madhya Pradesh",
-    areaInHectares: 2.1,
-    sowingDate: "08/11/2025",
-    createdAt: "2026-03-21T09:30:00Z",
-    verifiedAt: null,
-  },
-  {
-    id: "CLM-1008",
-    farmerName: "Vikram Singh",
-    farmerId: "PMFBY-RJ-99045",
-    crop: "Cotton",
-    disease: "Cotton Aphids",
-    damagePct: 60,
-    aiConfidence: 89,
-    status: "pending",
-    dateFiled: "22/03/2026",
-    gpsLat: "26.9124",
-    gpsLng: "70.9000",
-    premiumPaid: 3500,
-    estCompensation: 105000,
-    district: "Barmer",
-    state: "Rajasthan",
-    areaInHectares: 3.5,
-    sowingDate: "18/06/2025",
-    createdAt: "2026-03-22T11:15:00Z",
-    verifiedAt: null,
-  },
-  {
-    id: "CLM-1009",
-    farmerName: "Anita Devi",
-    farmerId: "PMFBY-UP-73019",
-    crop: "Wheat",
-    disease: "Yellow Rust",
-    damagePct: 80,
-    aiConfidence: 95,
-    status: "pending",
-    dateFiled: "23/03/2026",
-    gpsLat: "26.8467",
-    gpsLng: "80.9462",
-    premiumPaid: 1800,
-    estCompensation: 72000,
-    district: "Lucknow",
-    state: "Uttar Pradesh",
-    areaInHectares: 1.8,
-    sowingDate: "01/11/2025",
-    createdAt: "2026-03-23T08:45:00Z",
-    verifiedAt: null,
-  },
-];
+const SUSPENDED_KEY = "pmfby_suspended_farmers";
 
 let claimCounter = 1009;
 
@@ -242,7 +51,8 @@ function loadClaims(): Claim[] {
           return num > max ? num : max;
         }, claimCounter);
         claimCounter = maxId;
-        return parsed;
+        // Backfill rejectionReason for older saved claims
+        return parsed.map((c) => ({ ...c, rejectionReason: c.rejectionReason ?? null }));
       }
     }
   } catch {
@@ -251,82 +61,113 @@ function loadClaims(): Claim[] {
   return SEED_CLAIMS;
 }
 
-function saveClaims(claims: Claim[]) {
+function loadSuspended(): string[] {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(claims));
+    const raw = localStorage.getItem(SUSPENDED_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch {
-    // Storage full or unavailable — silent fail
+    // ignore
   }
+  return [];
 }
 
-// State code mapping for farmerId generation
-const STATE_CODES: Record<string, string> = {
-  "Andhra Pradesh": "AP", "Arunachal Pradesh": "AR", "Assam": "AS",
-  "Bihar": "BR", "Chhattisgarh": "CG", "Goa": "GA", "Gujarat": "GJ",
-  "Haryana": "HR", "Himachal Pradesh": "HP", "Jharkhand": "JH",
-  "Karnataka": "KA", "Kerala": "KL", "Madhya Pradesh": "MP",
-  "Maharashtra": "MH", "Manipur": "MN", "Meghalaya": "ML",
-  "Mizoram": "MZ", "Nagaland": "NL", "Odisha": "OD",
-  "Punjab": "PB", "Rajasthan": "RJ", "Sikkim": "SK",
-  "Tamil Nadu": "TN", "Telangana": "TS", "Tripura": "TR",
-  "Uttar Pradesh": "UP", "Uttarakhand": "UK", "West Bengal": "WB",
-};
-
-export type NewClaimData = Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "createdAt" | "verifiedAt">;
+export type NewClaimData = Omit<Claim, "id" | "status" | "dateFiled" | "farmerId" | "premiumPaid" | "estCompensation" | "createdAt" | "verifiedAt" | "rejectionReason">;
 
 interface ClaimsContextType {
   claims: Claim[];
-  addClaim: (claim: NewClaimData) => void;
-  updateClaimStatus: (id: string, status: "approved" | "rejected") => void;
+  suspendedFarmerIds: string[];
+  addClaim: (claim: NewClaimData) => string; // returns generated claim ID
+  approveClaim: (id: string) => void;
+  rejectClaim: (id: string, reason: string) => void;
+  toggleSuspendFarmer: (farmerId: string) => boolean; // returns new suspended state
+  resetDemoData: () => void;
 }
 
 const ClaimsContext = createContext<ClaimsContextType | null>(null);
 
 export const ClaimsProvider = ({ children }: { children: ReactNode }) => {
   const [claims, setClaims] = useState<Claim[]>(loadClaims);
+  const [suspendedFarmerIds, setSuspendedFarmerIds] = useState<string[]>(loadSuspended);
 
   useEffect(() => {
-    saveClaims(claims);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(claims));
+    } catch { /* ignore */ }
   }, [claims]);
 
-  const addClaim = useCallback(
-    (data: NewClaimData) => {
-      claimCounter += 1;
-      const now = new Date();
-      const stateCode = STATE_CODES[data.state] || "XX";
-      const { premiumPaid, estCompensation } = calculateFinancials(data.areaInHectares, data.damagePct);
+  useEffect(() => {
+    try {
+      localStorage.setItem(SUSPENDED_KEY, JSON.stringify(suspendedFarmerIds));
+    } catch { /* ignore */ }
+  }, [suspendedFarmerIds]);
 
-      const newClaim: Claim = {
-        ...data,
-        id: `CLM-${String(claimCounter).padStart(4, "0")}`,
-        farmerId: `PMFBY-${stateCode}-${Math.floor(10000 + Math.random() * 90000)}`,
-        status: "pending",
-        dateFiled: now.toLocaleDateString("en-IN"),
-        premiumPaid,
-        estCompensation,
-        createdAt: now.toISOString(),
-        verifiedAt: null,
-      };
-      setClaims((prev) => [newClaim, ...prev]);
-    },
-    []
-  );
+  const addClaim = useCallback((data: NewClaimData): string => {
+    claimCounter += 1;
+    const now = new Date();
+    const stateCode = STATE_CODES[data.state] || "XX";
+    const { premiumPaid, estCompensation } = calculateFinancials(data.areaInHectares, data.damagePct);
+    const id = `CLM-${String(claimCounter).padStart(4, "0")}`;
 
-  const updateClaimStatus = useCallback(
-    (id: string, status: "approved" | "rejected") => {
-      setClaims((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? { ...c, status, verifiedAt: new Date().toISOString() }
-            : c
-        )
-      );
-    },
-    []
-  );
+    const newClaim: Claim = {
+      ...data,
+      id,
+      farmerId: `PMFBY-${stateCode}-${Math.floor(10000 + Math.random() * 90000)}`,
+      status: "pending",
+      dateFiled: now.toLocaleDateString("en-IN"),
+      premiumPaid,
+      estCompensation,
+      createdAt: now.toISOString(),
+      verifiedAt: null,
+      rejectionReason: null,
+    };
+    setClaims((prev) => [newClaim, ...prev]);
+    return id;
+  }, []);
+
+  const approveClaim = useCallback((id: string) => {
+    setClaims((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, status: "approved" as const, verifiedAt: new Date().toISOString(), rejectionReason: null }
+          : c
+      )
+    );
+  }, []);
+
+  const rejectClaim = useCallback((id: string, reason: string) => {
+    setClaims((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, status: "rejected" as const, verifiedAt: new Date().toISOString(), rejectionReason: reason }
+          : c
+      )
+    );
+  }, []);
+
+  const toggleSuspendFarmer = useCallback((farmerId: string): boolean => {
+    let nowSuspended = false;
+    setSuspendedFarmerIds((prev) => {
+      if (prev.includes(farmerId)) {
+        nowSuspended = false;
+        return prev.filter((id) => id !== farmerId);
+      }
+      nowSuspended = true;
+      return [...prev, farmerId];
+    });
+    return nowSuspended;
+  }, []);
+
+  const resetDemoData = useCallback(() => {
+    setClaims(SEED_CLAIMS);
+    setSuspendedFarmerIds([]);
+    claimCounter = 1009;
+  }, []);
 
   return (
-    <ClaimsContext.Provider value={{ claims, addClaim, updateClaimStatus }}>
+    <ClaimsContext.Provider value={{ claims, suspendedFarmerIds, addClaim, approveClaim, rejectClaim, toggleSuspendFarmer, resetDemoData }}>
       {children}
     </ClaimsContext.Provider>
   );
